@@ -1,16 +1,16 @@
 import 'dart:convert';
 import 'dart:ui';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/foundation.dart';
-import 'package:chassis_timeline_viewer/ui/utils/app_enums.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
 
 extension StringExtension on String {
-  String get capsFirstLetterOfSentence => '${this[0].toUpperCase()}${substring(1)}';
+  String get capsFirstLetterOfSentence =>
+      '${this[0].toUpperCase()}${substring(1)}';
 
   String get allInCaps => toUpperCase();
 
-  String get capitalizeFirstLetterOfSentence => split(' ').map((str) => str.capsFirstLetterOfSentence).join(' ');
+  String get capitalizeFirstLetterOfSentence =>
+      split(' ').map((str) => str.capsFirstLetterOfSentence).join(' ');
 
   String get removeWhiteSpace => replaceAll(' ', '');
 
@@ -58,19 +58,33 @@ extension StringExtension on String {
     return this;
     // var str = utf8.decode(base64Decode(this));
     final percentDecoded = Uri.decodeQueryComponent(this);
-    final padded = percentDecoded.padRight((percentDecoded.length + 3) ~/ 4 * 4, '=');
+    final padded = percentDecoded.padRight(
+      (percentDecoded.length + 3) ~/ 4 * 4,
+      '=',
+    );
     var str = utf8.decode(base64Url.decode(padded));
     return str;
   }
 
   String get cleanAddress {
-    return replaceAll(RegExp(r'[\t\r\n]+'), ' ') // Replace tabs, \r, \n with space
-        .replaceAll(RegExp(r'\s*,\s*'), ', ') // Ensure single space after commas
+    return replaceAll(
+          RegExp(r'[\t\r\n]+'),
+          ' ',
+        ) // Replace tabs, \r, \n with space
+        .replaceAll(
+          RegExp(r'\s*,\s*'),
+          ', ',
+        ) // Ensure single space after commas
         .replaceAll(RegExp(r'\s+'), ' ') // Collapse multiple spaces
         .trim(); // Trim start/end spaces
   }
 
-  bool get isTrue => (this == '1' || toLowerCase() == 't' || toLowerCase() == 'true' || toLowerCase() == 'y' || toLowerCase() == 'yes');
+  bool get isTrue =>
+      (this == '1' ||
+      toLowerCase() == 't' ||
+      toLowerCase() == 'true' ||
+      toLowerCase() == 'y' ||
+      toLowerCase() == 'yes');
 
   String get localized => this.tr();
 
@@ -89,7 +103,11 @@ extension StringExtension on String {
   // }
 
   ///Date Format
-  String getCustomDateTimeFormat(String inputFormat, String outputFormat, {bool isCheckPresent = false}) {
+  String getCustomDateTimeFormat(
+    String inputFormat,
+    String outputFormat, {
+    bool isCheckPresent = false,
+  }) {
     if (this == '' || inputFormat == '' || outputFormat == '') {
       return '';
     }
@@ -97,7 +115,9 @@ extension StringExtension on String {
     String value = DateFormat(outputFormat).format(dateTime);
     if (isCheckPresent) {
       DateTime currentDateTime = DateTime.now();
-      if (dateTime.year == currentDateTime.year && dateTime.month == currentDateTime.month && dateTime.day == currentDateTime.day) {
+      if (dateTime.year == currentDateTime.year &&
+          dateTime.month == currentDateTime.month &&
+          dateTime.day == currentDateTime.day) {
         value = 'Present';
       }
     }
@@ -164,7 +184,8 @@ extension StringExtension on String {
   }
 
   bool isEmailValid() {
-    Pattern pattern = r'^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$';
+    Pattern pattern =
+        r'^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$';
     // RegExp regex = new RegExp(pattern);
     RegExp regex = RegExp(pattern.toString());
     if (!(regex.hasMatch(this))) {
@@ -175,7 +196,9 @@ extension StringExtension on String {
   }
 
   bool isWebsiteValid() {
-    final urlRegExp = RegExp(r'((https?:www\.)|(https?:\/\/)|(www\.))[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9]{1,6}(\/[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)?');
+    final urlRegExp = RegExp(
+      r'((https?:www\.)|(https?:\/\/)|(www\.))[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9]{1,6}(\/[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)?',
+    );
 
     if (!(urlRegExp.hasMatch(this))) {
       return false;
@@ -184,17 +207,18 @@ extension StringExtension on String {
     }
   }
 
-  String get toRequiredText => '$this ${LocaleKeys.keyShouldBeRequired.localized}';
+  String get toRequiredText =>
+      '$this ${LocaleKeys.keyShouldBeRequired.localized}';
 
-  TicketReasonPlatformType? ticketReasonPlatformTypeToString() {
-    switch (this) {
-      case 'CLIENT':
-        return TicketReasonPlatformType.CLIENT;
-      case 'DESTINATION':
-        return TicketReasonPlatformType.DESTINATION;
-    }
-    return null;
-  }
+  // TicketReasonPlatformType? ticketReasonPlatformTypeToString() {
+  //   switch (this) {
+  //     case 'CLIENT':
+  //       return TicketReasonPlatformType.CLIENT;
+  //     case 'DESTINATION':
+  //       return TicketReasonPlatformType.DESTINATION;
+  //   }
+  //   return null;
+  // }
 
   String toCapitalized() {
     if (isEmpty) return this;
@@ -242,8 +266,6 @@ extension BoolExtension on bool? {
       : LocaleKeys.keyDeActive.localized;
 }
 
-
-
 extension ListJoinExtension on List {
   String get joinChunks {
     return join();
@@ -251,11 +273,14 @@ extension ListJoinExtension on List {
 }
 
 extension NumExtension on num {
-  String get digitValues{
-    if (this % 1 == 0) {return this.toInt().toString();} else {return this.toStringAsFixed(3);}
+  String get digitValues {
+    if (this % 1 == 0) {
+      return this.toInt().toString();
+    } else {
+      return this.toStringAsFixed(3);
+    }
   }
 }
-
 
 extension TrimmedNumericString on String {
   String toTrimmedNumeric() {

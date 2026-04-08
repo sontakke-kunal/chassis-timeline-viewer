@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:chassis_timeline_viewer/ui/utils/app_constants.dart';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -12,7 +13,9 @@ mixin ZoomAwareMixin<T extends ConsumerStatefulWidget> on ConsumerState<T>, Widg
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    if (!AppConstants.isWindows) {
+      WidgetsBinding.instance.addObserver(this);
+    }
     SchedulerBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
         updateFixedSize();
@@ -23,7 +26,9 @@ mixin ZoomAwareMixin<T extends ConsumerStatefulWidget> on ConsumerState<T>, Widg
   @override
   void dispose() {
     if (mounted) {
-      WidgetsBinding.instance.removeObserver(this);
+      if (!AppConstants.isWindows) {
+        WidgetsBinding.instance.removeObserver(this);
+      }
     }
     super.dispose();
   }
@@ -53,14 +58,21 @@ mixin ZoomAwareMixin<T extends ConsumerStatefulWidget> on ConsumerState<T>, Widg
 
     // What changed?
     final pixelRatioChanged = zoom.lastDevicePixelRatio != dpr;
-    final displayChanged = zoom.lastDisplayId != null && zoom.lastDisplayId != currentDisplayId;
-    final uninitialized = zoom.fixedWidth == 0 || zoom.fixedHeight == 0 || zoom.initialDevicePixelRatio == 0;
+    final displayChanged =
+        zoom.lastDisplayId != null && zoom.lastDisplayId != currentDisplayId;
+    final uninitialized =
+        zoom.fixedWidth == 0 ||
+        zoom.fixedHeight == 0 ||
+        zoom.initialDevicePixelRatio == 0;
 
     // Track latest display id for next comparisons
     zoom.lastDisplayId = currentDisplayId;
 
     // If DPR changed, display changed, or we are uninitialized, do a FULL RESET and set fresh dimensions
-    if (pixelRatioChanged || displayChanged || uninitialized || staticWindowSize) {
+    if (pixelRatioChanged ||
+        displayChanged ||
+        uninitialized ||
+        staticWindowSize) {
       await ZoomAware.zoomBox.clear();
       setState(() {
         zoom.initialDevicePixelRatio = dpr;
@@ -95,7 +107,11 @@ mixin ZoomAwareMixin<T extends ConsumerStatefulWidget> on ConsumerState<T>, Widg
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           physics: NeverScrollableScrollPhysics(),
-          child: Container(width: ZoomAware.zoomAware.fixedWidth, height: ZoomAware.zoomAware.fixedHeight, child: buildPage(context)),
+          child: Container(
+            width: ZoomAware.zoomAware.fixedWidth,
+            height: ZoomAware.zoomAware.fixedHeight,
+            child: buildPage(context),
+          ),
         ),
       ),
     );
