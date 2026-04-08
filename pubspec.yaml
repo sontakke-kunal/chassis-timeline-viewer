@@ -27,6 +27,9 @@ dependencies:
   hive_flutter: ^1.1.0
   display_metrics: ^2.3.0
   window_manager: ^0.5.1
+  file_picker: ^11.0.2
+  archive: ^4.0.9
+  clipboard: ^3.0.14
 
 dev_dependencies:
   flutter_test:

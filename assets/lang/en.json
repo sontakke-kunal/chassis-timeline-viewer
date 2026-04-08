@@ -2,5 +2,7 @@
   "keyStart": "Start",
   "keyShouldBeRequired": "should be required.",
   "keyActive": "Active",
-  "keyDeActive": "De-active"
+  "keyDeActive": "De-active",
+  "keySuccess": "Success",
+  "keySomeThingWentWrong": "Something went wrong"
 }

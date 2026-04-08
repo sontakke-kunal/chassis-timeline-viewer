@@ -1,3 +1,4 @@
+import 'package:chassis_timeline_viewer/framework/controller/temp.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +15,8 @@ class _SplashWebState extends ConsumerState<SplashWeb> {
   @override
   void initState() {
     super.initState();
-    SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {});
+    SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
+    });
   }
 
   ///Build Override

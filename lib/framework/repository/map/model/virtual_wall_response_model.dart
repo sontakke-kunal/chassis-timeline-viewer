@@ -16,11 +16,11 @@ class VirtualWallResponseModel {
   });
 
   factory VirtualWallResponseModel.fromJson(Map<String, dynamic> json) => VirtualWallResponseModel(
-        waypoints: List<VirtualWallPoint>.from(json["waypoints"].map((x) => VirtualWallPoint.fromJson(x))),
+        waypoints: List<VirtualWallPoint>.from(json["virtualWalls"].map((x) => VirtualWallPoint.fromJson(x))),
       );
 
   Map<String, dynamic> toJson() => {
-        "waypoints": List<dynamic>.from(waypoints.map((x) => x.toJson())),
+        "virtualWalls": List<dynamic>.from(waypoints.map((x) => x.toJson())),
       };
 }
 

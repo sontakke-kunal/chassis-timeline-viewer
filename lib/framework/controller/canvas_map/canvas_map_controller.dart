@@ -23,6 +23,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:injectable/injectable.dart';
 
+import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:chassis_timeline_viewer/framework/repository/map/model/map_list_response_model.dart';
+import 'package:chassis_timeline_viewer/framework/repository/map/model/virtual_wall_response_model.dart';
+import 'package:chassis_timeline_viewer/framework/repository/map/model/way_point_list_response_model.dart';
+import 'package:chassis_timeline_viewer/ui/routing/delegate.dart';
+import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
+import 'package:chassis_timeline_viewer/ui/utils/widgets/common_toast_widget.dart';
+import 'package:clipboard/clipboard.dart';
+import 'package:collection/collection.dart';
+import 'package:path/path.dart' as p;
+import 'package:archive/archive.dart';
+import 'package:file_picker/file_picker.dart';
+
 final canvasMapController = ChangeNotifierProvider((ref) => getIt<CanvasMapController>());
 
 @injectable
@@ -526,7 +541,7 @@ class CanvasMapController extends ChangeNotifier {
   LaserDataResponseModel? threeDDataModel;
   LaserDataResponseModel? laserDataResponseModel;
 
-  Map<String, ui.Image?> image = {};
+  String? crtImg;
   PictureInfo? odigoImage;
   PictureInfo? chargingPointImage;
   PictureInfo? productionPointImage;
@@ -1454,22 +1469,23 @@ class CanvasMapController extends ChangeNotifier {
     return deviceLogs.length;
   }
 
-  Future<int> readTimelineFile({String? path}) async {
-    if (path != null) return 0;
+  Future<int> readTimelineFile() async {
+    if (timeLineData == null) return 0;
     timelineTimer?.cancel();
     timelineTimer = null;
     timeLineMap.clear();
     _timelineLastFull = {};
 
-    String res = '';
-    if ((path ?? timelineFilePath) != null) {
-      // File is stored as "k,d" objects without top-level array; normalize.
-      res = '[${(await File(path ?? timelineFilePath!).readAsString()).replaceAll(',,]', '.]')}]';
-    }
+    String res = timeLineData??"";
+    // if ((path ?? timelineFilePath) != null) {
+    //   // File is stored as "k,d" objects without top-level array; normalize.
+    //   res = '[${(await File(path ?? timelineFilePath!).readAsString()).replaceAll(',,]', '.]')}]';
+    // }
     res = res.replaceAll(', ]', ']');
     if (res.trim().isEmpty) return 0;
 
-    String timelineDate = (path ?? timelineFilePath)!.split('_').last;
+    //String timelineDate = (path ?? timelineFilePath)!.split('_').last;
+    String timelineDate = "08-04-2026";
     timelineDate = timelineDate.split('.json').first;
     final rawList = (jsonDecode(res) as List);
     int totalLen = rawList.length;
@@ -1759,6 +1775,133 @@ class CanvasMapController extends ChangeNotifier {
 
   final List<int> bookmarks = [];
 
+
+
+  ///import file
+
+
+  Future<File?> get _pickZipFile async {
+    FilePickerResult? result = await FilePicker.pickFiles(
+      allowMultiple: false,
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+    );
+    String? filePath=result?.files.firstOrNull?.path;
+    if(filePath==null) return null;
+    return File(filePath);
+  }
+  final ZipDecoder _zipDecoder=ZipDecoder();
+
+  Future<List<ZipEntryData>?> _unZipInMemory(File zipFile) async {
+    try{
+      final Uint8List bytes=await zipFile.readAsBytes();
+      final Archive archive = _zipDecoder.decodeBytes(bytes);
+      final List<ZipEntryData> result = [];
+      for (final ArchiveFile file in archive) {
+        if (file.isFile) {
+          result.add(
+            ZipEntryData(
+              file.name,
+              Uint8List.fromList(file.content as List<int>),
+            ),
+          );
+        }
+      }
+      return result;
+    }catch(e){
+      showErrorToast(msg: "Unzipping failed");
+    }
+  }
+
+  String? timeLineData;
+  String? timeLineDate;
+
+
+  Future<void> readZipFile() async {
+    File? file=await _pickZipFile;
+    if(file==null) return;
+    List<ZipEntryData>? list= await _unZipInMemory(file);
+    if(list==null || list.isEmpty){
+      //showErrorToast(msg:"File not picked");
+      return ;
+    }
+    int jsonFileCnt=0;
+    for(ZipEntryData file in list){
+      String ext=p.extension(file.name);
+      if(ext.contains("json")){
+        jsonFileCnt++;
+      }
+    }
+    if(jsonFileCnt!=2){
+      showErrorToast(msg: "Valid json files not found");
+      return;
+    }
+
+    final ZipEntryData? metaDataFile=list.firstWhereOrNull((obj)=>obj.name.endsWith("_metadata.json"));
+    final ZipEntryData? compressedFile=list.firstWhereOrNull((obj)=>obj.name.endsWith("_compressed.json"));
+    if(metaDataFile==null || compressedFile==null){
+      showErrorToast(msg: "Json file name invlaid");
+      return;
+    }
+
+    try {
+      final String? timeLineData =await _parseCompressedJson(compressedFile.data);
+      this.timeLineData=timeLineData;
+
+      final Map<String, dynamic> metaData = jsonDecode(utf8.decode(metaDataFile.data));
+      String? mapUuid=metaData["mapsUuid"];
+      String? deviceUuid=metaData["deviceUuid"];
+      if(mapUuid==null || deviceUuid==null) return;
+      //String? mapUuid=metaData["mapsUuid"];
+      WayPointData wayPointData=WayPointData.fromJson(metaData);
+      VirtualWallResponseModel virtualWallResponseModel=VirtualWallResponseModel.fromJson(metaData);
+      //DestinationData destinationData=DestinationData.fromJson(metaData["destination"]);
+      MapListData mapData=MapListData.fromJson(metaData["maps"]);
+      String? mapImgData=metaData["mapsImage"];
+      this.timeLineDate=metaData["exportedAt"];
+
+      this.virtualWall[mapUuid]=virtualWallResponseModel.waypoints;
+      this.mapsUuid=mapUuid;
+      this.waypointsList[mapUuid]=wayPointData.waypoints??[];
+      Map<String,List<List<double>>>? routes=metaData["routes"];
+      this.naviRoutes= {"routes":routes??{}};//TODO
+
+      this.crtImg=mapImgData;
+
+
+    } catch (e) {
+      showErrorToast(msg:"JSON parse error: $e");
+    }
+
+  }
+  Future<String?> _parseCompressedJson(Uint8List data) async {
+    try{
+      final String base64Str = utf8.decode(data);
+
+      final Uint8List compressedBytes = base64Decode(base64Str);
+
+      final Uint8List decompressedBytes = GZipDecoder().decodeBytes(compressedBytes);
+      String str=utf8.decode(decompressedBytes);
+      return str;
+    }catch(e){
+      showErrorToast(msg: "Timeline file formatting failed");
+      return null;
+    }
+  }
+
+  void showErrorToast({required String msg}){
+    final BuildContext? context=globalNavigatorKey.currentContext;
+    if(context==null) return;
+    showToast(context: context,message: msg,isSuccess: false);
+  }
+
+}
+
+class ZipEntryData {
+  final String name;
+  final Uint8List data;
+
+  ZipEntryData(this.name, this.data);
 }
 
 
