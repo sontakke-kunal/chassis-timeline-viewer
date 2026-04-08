@@ -2,6 +2,7 @@ import 'package:chassis_timeline_viewer/framework/controller/canvas_map/canvas_m
 import 'package:chassis_timeline_viewer/framework/utils/extension/context_extension.dart';
 import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/custom_tool_tip.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/app_colors.dart';
+import 'package:chassis_timeline_viewer/ui/utils/theme/assets.gen.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
 import 'package:chassis_timeline_viewer/ui/utils/widgets/common_svg.dart';
 import 'package:flutter/cupertino.dart';

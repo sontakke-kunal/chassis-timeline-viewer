@@ -1,9 +1,26 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
+import 'dart:ui' as ui;
 import 'package:chassis_timeline_viewer/framework/dependency_injection/inject.dart';
 import 'package:chassis_timeline_viewer/framework/repository/map/model/device_list_model.dart';
+import 'package:chassis_timeline_viewer/framework/repository/map/model/device_state_event.dart';
+import 'package:chassis_timeline_viewer/framework/repository/map/model/laser_data_response_model.dart';
+import 'package:chassis_timeline_viewer/framework/repository/map/model/map_list_response_model.dart';
 import 'package:chassis_timeline_viewer/framework/repository/map/model/map_variables.dart';
 import 'package:chassis_timeline_viewer/framework/repository/map/model/robot_more_info_models.dart';
+import 'package:chassis_timeline_viewer/framework/repository/map/model/virtual_wall_response_model.dart';
+import 'package:chassis_timeline_viewer/framework/repository/map/model/way_point_list_response_model.dart';
+import 'package:chassis_timeline_viewer/framework/utils/extension/context_extension.dart';
+import 'package:chassis_timeline_viewer/framework/utils/extension/extension.dart';
+import 'package:chassis_timeline_viewer/framework/utils/extension/graph_extension.dart';
+import 'package:chassis_timeline_viewer/ui/utils/app_enums.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
+import 'package:chassis_timeline_viewer/ui/utils/widgets/common_text.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:injectable/injectable.dart';
 
 final canvasMapController = ChangeNotifierProvider((ref) => getIt<CanvasMapController>());
@@ -13,6 +30,7 @@ class CanvasMapController extends ChangeNotifier {
 
   MapVariables? mapVariablesData;
   String robotId = "";
+  String mapsUuid = "";
 
   Map<String, int> currentMapMode = {};
   Map<String, double> scale = {};
@@ -95,7 +113,7 @@ class CanvasMapController extends ChangeNotifier {
   /// Recenters camera on a robot pose (pose values are expected to be in Dasher/map
   /// coordinates).
   void recenterOnPose(String mapsUuid, Pose pose) {
-    final vars = mapVariablesData[mapsUuid];
+    final vars = mapVariablesData;
     if (vars == null) return;
 
     final uiX = (pose.x ?? 0).convertXFromDasherPoint(vars);
@@ -132,7 +150,7 @@ class CanvasMapController extends ChangeNotifier {
     updateViewportSize(mapsUuid, Size(context.width, context.height));
     scale[mapsUuid] = s;
 
-    final vars = mapVariablesData[mapsUuid];
+    final vars = mapVariablesData;
     if (vars == null) return;
 
     final pose = selectedRobotOnMap!.pose!;
@@ -153,7 +171,7 @@ class CanvasMapController extends ChangeNotifier {
     final size = viewportSize[mapsUuid];
     if (controller == null || size == null) return;
     final s = controller.value.getMaxScaleOnAxis();
-    final vars = mapVariablesData[mapsUuid];
+    final vars = mapVariablesData;
     if (vars == null) return;
     // Calculate the map's size in UI pixels
     final mapWidth = vars.width * s;
@@ -214,42 +232,42 @@ class CanvasMapController extends ChangeNotifier {
   }
 
   ///Get Current Map
-  Future<void> setMapData(MapListData mapData) async {
-    deviceList[mapData.uuid!] = [];
-    downloadValue[mapData.uuid!] = 0;
-    currentMapMode[mapData.uuid!] = 0;
-    scale[mapData.uuid!] = 0.6;
-    selectedPointTypeList[mapData.uuid!] = [];
-    notifyListeners();
-    var mapImageUrl = await Dio().get(
-      mapData.mapsImageUrl ?? '',
-      onReceiveProgress: (count, total) {
-        downloadValue[mapData.uuid ?? ''] = count / total;
-        notifyListeners();
-      },
-    );
-    notifyListeners();
-    currentMapResponseModel[mapData.uuid!] = mapData;
-    var currentMap = mapImageUrl.toString();
-    var originX = currentMapResponseModel[mapData.uuid]?.originX ?? 0.0;
-    var originY = currentMapResponseModel[mapData.uuid]?.originY ?? 0.0;
-    var resolution = currentMapResponseModel[mapData.uuid]?.resolution ?? 0.0;
-    var width = currentMapResponseModel[mapData.uuid]?.width ?? 0.0;
-    var height = currentMapResponseModel[mapData.uuid]?.height ?? 0.0;
-    var centerX = (originX / resolution) * -1;
-    var centerY = (height) - ((originY / resolution) * -1);
-    globalPath = [];
-    laserData = [];
-    threeDData = [];
-    transformationController[mapData.uuid!] = TransformationController();
-    mapVariablesData[mapData.uuid!] = MapVariables();
-    mapVariablesData[mapData.uuid!]?.initializeMapConstants(mapData.uuid!, currentMap, originX, originY, resolution, width, height, centerX, centerY);
-    if (currentMapMode == 1) {
-      clearAllData(mapData.uuid!);
-    }
-    image[mapData.uuid!] = await mapVariablesData[mapData.uuid!]?.loadImage();
-    refreshMapPainter(mapData.uuid!);
-  }
+  // Future<void> setMapData(MapListData mapData) async {
+  //   deviceList[mapData.uuid!] = [];
+  //   downloadValue[mapData.uuid!] = 0;
+  //   currentMapMode[mapData.uuid!] = 0;
+  //   scale[mapData.uuid!] = 0.6;
+  //   selectedPointTypeList[mapData.uuid!] = [];
+  //   notifyListeners();
+  //   var mapImageUrl = await Dio().get(
+  //     mapData.mapsImageUrl ?? '',
+  //     onReceiveProgress: (count, total) {
+  //       downloadValue[mapData.uuid ?? ''] = count / total;
+  //       notifyListeners();
+  //     },
+  //   );
+  //   notifyListeners();
+  //   currentMapResponseModel[mapData.uuid!] = mapData;
+  //   var currentMap = mapImageUrl.toString();
+  //   var originX = currentMapResponseModel[mapData.uuid]?.originX ?? 0.0;
+  //   var originY = currentMapResponseModel[mapData.uuid]?.originY ?? 0.0;
+  //   var resolution = currentMapResponseModel[mapData.uuid]?.resolution ?? 0.0;
+  //   var width = currentMapResponseModel[mapData.uuid]?.width ?? 0.0;
+  //   var height = currentMapResponseModel[mapData.uuid]?.height ?? 0.0;
+  //   var centerX = (originX / resolution) * -1;
+  //   var centerY = (height) - ((originY / resolution) * -1);
+  //   globalPath = [];
+  //   laserData = [];
+  //   threeDData = [];
+  //   transformationController[mapData.uuid!] = TransformationController();
+  //   mapVariablesData[mapData.uuid!] = MapVariables();
+  //   mapVariablesData[mapData.uuid!]?.initializeMapConstants(mapData.uuid!, currentMap, originX, originY, resolution, width, height, centerX, centerY);
+  //   if (currentMapMode == 1) {
+  //     clearAllData(mapData.uuid!);
+  //   }
+  //   image[mapData.uuid!] = await mapVariablesData[mapData.uuid!]?.loadImage();
+  //   refreshMapPainter(mapData.uuid!);
+  // }
 
   void clearAllData(String mapsUuid) {
     waypointsList[mapsUuid]!.clear();
@@ -263,44 +281,44 @@ class CanvasMapController extends ChangeNotifier {
   GlobalKey loadingDialogKey = GlobalKey();
 
   ///Get way points
-  Future<void> getWaypoints(String mapsUuid) async {
-    virtualWall[mapsUuid] = [];
-    naviRoutes[mapsUuid] = {};
-    waypointsList[mapsUuid] = [];
-    //Get Waypoints, Way Paths, Virtual Walls Data
-    final resultPoints = await storeMappingRepository.getMapWayPoints(mapsUuid: mapsUuid);
-    final resultPath = await storeMappingRepository.getMapWayPaths(mapsUuid: mapsUuid);
-    final resultWalls = await storeMappingRepository.getMapVirtualWalls(mapsUuid: mapsUuid);
-    resultPoints.when(
-      success: (data) {
-        waypointsList[mapsUuid]!.addAll(data.data?.waypoints ?? []);
-      },
-      failure: (error) {},
-    );
-    resultPath.when(
-      success: (data) {
-        naviRoutes[mapsUuid] = (jsonDecode(data.data?.value ?? '') as Map).toRouteMap;
-      },
-      failure: (error) {},
-    );
-    resultWalls.when(
-      success: (data) {
-        (jsonDecode(data.data?.value ?? '') as List).forEach((element) {
-          virtualWall[mapsUuid]!.add(VirtualWallPoint.fromJson(element));
-        });
-      },
-      failure: (error) {},
-    );
-    waypointsList[mapsUuid]!.sort((Waypoint pointName1, Waypoint pointName2) {
-      return ((pointName1.name)?.toLowerCase() ?? '').compareTo((pointName2.name)?.toLowerCase() ?? '');
-    });
-    refreshWaypointsPainter(mapsUuid);
-    refreshRoutesPainter(mapsUuid);
-    refreshVirtualWallPainter(mapsUuid);
-    if (loadingDialogKey.currentContext != null) {
-      Navigator.pop(loadingDialogKey.currentContext!);
-    }
-  }
+  // Future<void> getWaypoints(String mapsUuid) async {
+  //   virtualWall[mapsUuid] = [];
+  //   naviRoutes[mapsUuid] = {};
+  //   waypointsList[mapsUuid] = [];
+  //   //Get Waypoints, Way Paths, Virtual Walls Data
+  //   final resultPoints = await storeMappingRepository.getMapWayPoints(mapsUuid: mapsUuid);
+  //   final resultPath = await storeMappingRepository.getMapWayPaths(mapsUuid: mapsUuid);
+  //   final resultWalls = await storeMappingRepository.getMapVirtualWalls(mapsUuid: mapsUuid);
+  //   resultPoints.when(
+  //     success: (data) {
+  //       waypointsList[mapsUuid]!.addAll(data.data?.waypoints ?? []);
+  //     },
+  //     failure: (error) {},
+  //   );
+  //   resultPath.when(
+  //     success: (data) {
+  //       naviRoutes[mapsUuid] = (jsonDecode(data.data?.value ?? '') as Map).toRouteMap;
+  //     },
+  //     failure: (error) {},
+  //   );
+  //   resultWalls.when(
+  //     success: (data) {
+  //       (jsonDecode(data.data?.value ?? '') as List).forEach((element) {
+  //         virtualWall[mapsUuid]!.add(VirtualWallPoint.fromJson(element));
+  //       });
+  //     },
+  //     failure: (error) {},
+  //   );
+  //   waypointsList[mapsUuid]!.sort((Waypoint pointName1, Waypoint pointName2) {
+  //     return ((pointName1.name)?.toLowerCase() ?? '').compareTo((pointName2.name)?.toLowerCase() ?? '');
+  //   });
+  //   refreshWaypointsPainter(mapsUuid);
+  //   refreshRoutesPainter(mapsUuid);
+  //   refreshVirtualWallPainter(mapsUuid);
+  //   if (loadingDialogKey.currentContext != null) {
+  //     Navigator.pop(loadingDialogKey.currentContext!);
+  //   }
+  // }
 
   showLoadingDialog(BuildContext context, {required String title, required String description}) {
     showDialog(
@@ -355,11 +373,11 @@ class CanvasMapController extends ChangeNotifier {
 
   bool get startContinuousMonitoring => startContinuousMonitoringMain;
 
-  set startContinuousMonitoring(bool value) {
-    startContinuousMonitoringMain = value;
-    SocketController.instance.sendDataInBroadcastData(selectedRobotUuid, startContinuousMonitoring ? SocketConstant.startContinuousPositionUpdate : SocketConstant.stopContinuousPositionUpdate);
-    notifyListeners();
-  }
+  // set startContinuousMonitoring(bool value) {
+  //   startContinuousMonitoringMain = value;
+  //   SocketController.instance.sendDataInBroadcastData(selectedRobotUuid, startContinuousMonitoring ? SocketConstant.startContinuousPositionUpdate : SocketConstant.stopContinuousPositionUpdate);
+  //   notifyListeners();
+  // }
 
   ///List of available points
   Map<String, List<Waypoint>> waypointsList = {};
@@ -391,7 +409,7 @@ class CanvasMapController extends ChangeNotifier {
     } else {
       sessionData?.systemVolume = volume ?? 0.1;
     }
-    SocketController.instance.sendDataInBroadcastData(selectedRobotUuid, SocketConstant.changeVolume, data: sessionData?.systemVolume);
+    // SocketController.instance.sendDataInBroadcastData(selectedRobotUuid, SocketConstant.changeVolume, data: sessionData?.systemVolume);
     notifyListeners();
   }
 
@@ -401,7 +419,7 @@ class CanvasMapController extends ChangeNotifier {
     } else {
       sessionData?.navigationSpeed = navigationSpeed ?? 0.1;
     }
-    SocketController.instance.sendDataInBroadcastData(selectedRobotUuid, SocketConstant.changeNavigationSpeed, data: sessionData?.navigationSpeed);
+    // SocketController.instance.sendDataInBroadcastData(selectedRobotUuid, SocketConstant.changeNavigationSpeed, data: sessionData?.navigationSpeed);
     notifyListeners();
   }
 
@@ -411,7 +429,7 @@ class CanvasMapController extends ChangeNotifier {
     } else {
       sessionData?.cruiseSpeed = cruiseSpeed ?? 0.1;
     }
-    SocketController.instance.sendDataInBroadcastData(selectedRobotUuid, SocketConstant.changeCruiseSpeed, data: sessionData?.cruiseSpeed);
+    // SocketController.instance.sendDataInBroadcastData(selectedRobotUuid, SocketConstant.changeCruiseSpeed, data: sessionData?.cruiseSpeed);
     notifyListeners();
   }
 
@@ -421,11 +439,11 @@ class CanvasMapController extends ChangeNotifier {
     sessionData?.hideNavBar = value;
 
     // Notify robot
-    SocketController.instance.sendDataInBroadcastData(
-      selectedRobotUuid,
-      SocketConstant.hideNavBar,
-      data: value,
-    );
+    // SocketController.instance.sendDataInBroadcastData(
+    //   selectedRobotUuid,
+    //   SocketConstant.hideNavBar,
+    //   data: value,
+    // );
 
     notifyListeners();
   }
@@ -436,11 +454,11 @@ class CanvasMapController extends ChangeNotifier {
     sessionData?.hideStatusBar = value;
 
     // Notify robot
-    SocketController.instance.sendDataInBroadcastData(
-      selectedRobotUuid,
-      SocketConstant.hideStatusBar,
-      data: value,
-    );
+    // SocketController.instance.sendDataInBroadcastData(
+    //   selectedRobotUuid,
+    //   SocketConstant.hideStatusBar,
+    //   data: value,
+    // );
 
     notifyListeners();
   }
@@ -451,11 +469,11 @@ class CanvasMapController extends ChangeNotifier {
     sessionData?.slideShowNavBar = value;
 
     // Notify robot
-    SocketController.instance.sendDataInBroadcastData(
-      selectedRobotUuid,
-      SocketConstant.slideShowNavigationBar,
-      data: value,
-    );
+    // SocketController.instance.sendDataInBroadcastData(
+    //   selectedRobotUuid,
+    //   SocketConstant.slideShowNavigationBar,
+    //   data: value,
+    // );
 
     notifyListeners();
   }
@@ -466,11 +484,11 @@ class CanvasMapController extends ChangeNotifier {
     sessionData?.slideShowNotificationBar = value;
 
     // Notify robot
-    SocketController.instance.sendDataInBroadcastData(
-      selectedRobotUuid,
-      SocketConstant.slideShowNotificationBar,
-      data: value,
-    );
+    // SocketController.instance.sendDataInBroadcastData(
+    //   selectedRobotUuid,
+    //   SocketConstant.slideShowNotificationBar,
+    //   data: value,
+    // );
 
     notifyListeners();
   }
@@ -554,11 +572,11 @@ class CanvasMapController extends ChangeNotifier {
 
   void updateIsMuted(bool isMuted) {
     this.isMuted = isMuted;
-    SocketController.instance.sendDataInBroadcastData(
-      selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!,
-      SocketConstant.toggleAudio,
-      data: {'cameraId': selectedCamera == 0 ? 1 : 0, 'toggle': !isMuted},
-    );
+    // SocketController.instance.sendDataInBroadcastData(
+    //   selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!,
+    //   SocketConstant.toggleAudio,
+    //   data: {'cameraId': selectedCamera == 0 ? 1 : 0, 'toggle': !isMuted},
+    // );
     notifyListeners();
   }
 
@@ -580,35 +598,35 @@ class CanvasMapController extends ChangeNotifier {
   }
 
   void refreshMapPainter(String mapsUuid, {bool isNotify = true}) {
-    AppConstants.constant.globalRef?.read(mapPainterController).refreshMapPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify);
+    // AppConstants.constant.globalRef?.read(mapPainterController).refreshMapPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify);
   }
 
   void refreshWaypointsPainter(String mapsUuid, {bool isNotify = true}) {
-    AppConstants.constant.globalRef?.read(waypointsPainterController).refreshWaypointsPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify);
+    // AppConstants.constant.globalRef?.read(waypointsPainterController).refreshWaypointsPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify);
   }
 
-  void refreshRelocationPainter(String mapsUuid, {bool isNotify = true, required RelocationResponseModel? pose, String? color}) {
-    AppConstants.constant.globalRef?.read(relocationPainterController).refreshRelocationPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify, pose: pose, color: color);
-  }
+  // void refreshRelocationPainter(String mapsUuid, {bool isNotify = true, required RelocationResponseModel? pose, String? color}) {
+  //   // AppConstants.constant.globalRef?.read(relocationPainterController).refreshRelocationPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify, pose: pose, color: color);
+  // }
 
   void refreshPositionPainter(String mapsUuid, {bool isNotify = true, required DeviceData robot}) {
-    AppConstants.constant.globalRef?.read(positionPainterController).refreshPositionPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify, robot: robot);
+    // AppConstants.constant.globalRef?.read(positionPainterController).refreshPositionPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify, robot: robot);
   }
 
   void refreshVirtualWallPainter(String mapsUuid, {bool isNotify = true}) {
-    AppConstants.constant.globalRef?.read(virtualWallPainterController).refreshVirtualWallPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify);
+    // AppConstants.constant.globalRef?.read(virtualWallPainterController).refreshVirtualWallPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify);
   }
 
   void refreshCurrentMousePosition(String mapsUuid, {bool isNotify = true}) {
-    AppConstants.constant.globalRef?.read(currentMousePositionPainterController).refreshCurrentMousePosition(mapVariablesData[mapsUuid]!, isNotify: isNotify);
+    // AppConstants.constant.globalRef?.read(currentMousePositionPainterController).refreshCurrentMousePosition(mapVariablesData[mapsUuid]!, isNotify: isNotify);
   }
 
   void refreshContinousData(String mapsUuid, {bool isNotify = true}) {
-    AppConstants.constant.globalRef?.read(continousDataPainterController).refreshContinousData(mapVariablesData[mapsUuid]!, isNotify: isNotify);
+    // AppConstants.constant.globalRef?.read(continousDataPainterController).refreshContinousData(mapVariablesData[mapsUuid]!, isNotify: isNotify);
   }
 
   void refreshRoutesPainter(String mapsUuid, {bool isNotify = true}) {
-    AppConstants.constant.globalRef?.read(routesPainterController).refreshRoutesPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify);
+    // AppConstants.constant.globalRef?.read(routesPainterController).refreshRoutesPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify);
   }
 
   void refreshEntireCanvas(String mapsUuid) {
@@ -657,20 +675,20 @@ class CanvasMapController extends ChangeNotifier {
     deviceList[mapsUuid] = [];
     selectedRobotOnMap = null;
     selectRobotLiveUuid = null;
-    String request = deviceListRequestModelToJson(
-      DeviceListRequestModel(
-        activeRecords: true,
-        mapsUuid: mapsUuid,
-      ),
-    );
+    // String request = deviceListRequestModelToJson(
+    //   DeviceListRequestModel(
+    //     activeRecords: true,
+    //     mapsUuid: mapsUuid,
+    //   ),
+    // );
 
-    final result = await deviceRepository.deviceListApi(request, 1);
-    result.when(
-      success: (data) {
-        deviceList[mapsUuid]!.addAll(data.data ?? []);
-      },
-      failure: (error) {},
-    );
+    // final result = await deviceRepository.deviceListApi(request, 1);
+    // result.when(
+    //   success: (data) {
+    //     deviceList[mapsUuid]!.addAll(data.data ?? []);
+    //   },
+    //   failure: (error) {},
+    // );
 
     ///Get Robot List
     notifyListeners();
@@ -679,11 +697,11 @@ class CanvasMapController extends ChangeNotifier {
   }
 
   Future<void> updateDeviceTagColorApi({required String robotUuid, String? tag, String? color}) async {
-    final result = await deviceRepository.updateDeviceTagColorApi(jsonEncode({'uuid': robotUuid, 'colour': color, 'tag': tag}));
-    result.when(
-      success: (data) {},
-      failure: (error) {},
-    );
+    // final result = await deviceRepository.updateDeviceTagColorApi(jsonEncode({'uuid': robotUuid, 'colour': color, 'tag': tag}));
+    // result.when(
+    //   success: (data) {},
+    //   failure: (error) {},
+    // );
   }
 
   List<String> newConnectedRobotList = [];
@@ -699,168 +717,168 @@ class CanvasMapController extends ChangeNotifier {
   Future<void> listenToRobotPosition(String mapsUuid) async {
     connectedRobotList.clear();
     newConnectedRobotList.clear();
-    SocketController.instance.onRobotList = null;
-    SocketController.instance.onContinuosDataReceived = null;
-    SocketController.instance.onRobotPositionReceived = null;
-    SocketController.instance.onFileTransferStarted = null;
-    SocketController.instance.onFileTransferProgress = null;
-    SocketController.instance.onFileTransferCompleted = null;
-    SocketController.instance.onFileTransferFailed = null;
-    SocketController.instance.onFileTransferStarted = (int totalLen, String timelineFilePath) {
-      notifyListeners();
-      if (globalNavigatorKey.currentContext != null) {
-        showFileLoadingDialog(globalNavigatorKey.currentContext!, totalLen, timelineFilePath);
-      }
-    };
-    SocketController.instance.onFileTransferProgress = (int receivedChunks) {
-      this.receivedChunks = receivedChunks;
-      notifyListeners();
-    };
-    SocketController.instance.onFileTransferCompleted = (String filePath) {
-      if (globalNavigatorKey.currentContext != null) {
-        Navigator.pop(globalNavigatorKey.currentContext!);
-        showSuccessFailureDialogue(
-          context: globalNavigatorKey.currentContext!,
-          message: 'File transfer Successful',
-          isSuccess: true,
-          onTap: () async {
-            if (filePath.contains('timeline')) {
-              if (isDeviceListVisible) {
-                timelineFilePath = filePath;
-                deviceListAnimationController?.reverse(from: deviceListAnimationController?.value).then((value) async {
-                  updateIsDeviceListVisible(false);
-                  isTimelineScreen = true;
-                  AppConstants.constant.globalRef?.read(navigationStackController).push(NavigationStackItem.timeline(robotId: selectedRobotUuid, mapsUuid: mapsUuid));
-                });
-                Navigator.pop(globalNavigatorKey.currentContext!);
-              }
-            } else {
-              logsPath = filePath;
-              logsPath = filePath;
-              Navigator.pop(globalNavigatorKey.currentContext!);
-              deviceListAnimationController?.reverse(from: deviceListAnimationController?.value).then((value) async {
-                updateIsDeviceListVisible(false);
-                isTimelineScreen = true;
-                AppConstants.constant.globalRef?.read(navigationStackController).push(NavigationStackItem.robotLogs(robotId: selectedRobotUuid, mapsUuid: mapsUuid));
-              });
-            }
-          },
-        );
-      }
-    };
-    SocketController.instance.onFileTransferFailed = (String error) {
-      if (globalNavigatorKey.currentContext != null) {
-        Navigator.pop(globalNavigatorKey.currentContext!);
-        showSuccessFailureDialogue(
-          context: globalNavigatorKey.currentContext!,
-          message: error,
-          onTap: () {
-            Navigator.pop(globalNavigatorKey.currentContext!);
-          },
-        );
-      }
-    };
-    SocketController.instance.onRobotList = (robotList) {
-      isRefreshingRobots = false;
-      newConnectedRobotList = robotList.where((robot) => !connectedRobotList.contains(robot)).toList();
-      newConnectedRobotList.forEach((robot) {
-        Future.delayed(Duration(milliseconds: 200), () {
-          SocketController.instance.sendDataInBroadcastData(robot, null);
-        });
-      });
-      connectedRobotList = robotList;
-      if (connectedRobotList.isNotEmpty) {
-        connectedRobotList.removeWhere((uuid) => !deviceList[mapsUuid]!.any((robot) => robot.deviceDetails?.firstOrNull?.uuid == uuid));
-      }
-      if (selectedRobotOnMap == null && selectRobotLiveUuid != null) {
-        selectedRobotOnMap = deviceList[mapsUuid]?.where((e) => e.deviceDetails?.firstOrNull?.uuid == selectRobotLiveUuid).firstOrNull;
-        Future.delayed(Duration(milliseconds: 500), () => SocketController.instance.sendDataInBroadcastData(selectedRobotUuid, SocketConstant.startContinuousPositionUpdate));
-        notifyListeners();
-      }
-      deviceList[mapsUuid] = deviceList[mapsUuid]!.map((device) => !connectedRobotList.contains(device.deviceDetails?.firstOrNull?.uuid) ? (device..pose = null) : device).toList();
-      if (!isTimelineScreen) {
-        if (selectedRobotOnMap != null && !connectedRobotList.contains(selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!)) {
-          selectedRobotOnMap = null;
-          show3DData = false;
-          threeDData = [];
-          laserData = [];
-          globalPath = null;
-          sessionData = null;
-          versionData = null;
-          sensorData = null;
-          systemData = null;
-          speedData = null;
-          showCameraView = false;
-          selectedCamera = null;
-          adsDataRes = null;
-          isDeviceSettingsVisible = false;
-          batteryData = {};
-          refreshContinousData(mapsUuid, isNotify: true);
-        }
-      }
-      notifyListeners();
-    };
-    SocketController.instance.onRobotPositionReceived = (robotId, mapsUuid, pose) {
-      deviceList[mapsUuid] =
-          deviceList[mapsUuid]?.map((e) {
-            if (e.deviceDetails?.firstOrNull?.uuid == robotId) {
-              e.pose = pose;
-              e.color = e.color;
-              return e;
-            }
-            return e;
-          }).toList() ??
-              [];
-      if (deviceList[mapsUuid]?.isNotEmpty ?? false) {
-        refreshPositionPainter(mapsUuid, robot: deviceList[mapsUuid]!.firstWhere((element) => element.deviceDetails?.firstOrNull?.uuid == robotId), isNotify: true);
-      }
-      if (isRecenter && selectedRobotOnMap != null && selectedRobotUuid == robotId) {
-        // Keep the robot centered like Google Maps.
-        recenterOnPose(mapsUuid, pose);
-      }
-    };
-    SocketController.instance.onContinuosDataReceived = (robotId, mapName, path, threeDData, laserData, simEvent, navModeEvent, sessionData, versionData, sensorData, systemData, speedData, deviceState, networkEvent, batteryData, adsDataRes) {
-      this.batteryData[robotId] = batteryData;
-      if (networkEvent != null) {
-        this.networkEvent[robotId] = networkEvent;
-      }
-      if (robotId == selectedRobotUuid) {
-        globalPath = path;
-        this.threeDData = threeDData ?? [];
-        this.laserData = laserData ?? [];
-        this.sessionData = sessionData;
-        this.versionData = versionData;
-        this.sensorData = sensorData;
-        this.simEvent = simEvent;
-        this.navModeEvent = navModeEvent;
-        this.adsDataRes = adsDataRes;
-        this.systemData = systemData;
-        this.speedData = speedData;
-        this.deviceState = deviceState;
-      }
-      refreshContinousData(mapsUuid, isNotify: true);
-      notifyListeners();
-    };
-    // demoSocketData();
+    // SocketController.instance.onRobotList = null;
+    // SocketController.instance.onContinuosDataReceived = null;
+    // SocketController.instance.onRobotPositionReceived = null;
+    // SocketController.instance.onFileTransferStarted = null;
+    // SocketController.instance.onFileTransferProgress = null;
+    // SocketController.instance.onFileTransferCompleted = null;
+    // SocketController.instance.onFileTransferFailed = null;
+    // SocketController.instance.onFileTransferStarted = (int totalLen, String timelineFilePath) {
+    //   notifyListeners();
+    //   if (globalNavigatorKey.currentContext != null) {
+    //     showFileLoadingDialog(globalNavigatorKey.currentContext!, totalLen, timelineFilePath);
+    //   }
+    // };
+    // SocketController.instance.onFileTransferProgress = (int receivedChunks) {
+    //   this.receivedChunks = receivedChunks;
+    //   notifyListeners();
+    // };
+    // SocketController.instance.onFileTransferCompleted = (String filePath) {
+    //   if (globalNavigatorKey.currentContext != null) {
+    //     Navigator.pop(globalNavigatorKey.currentContext!);
+    //     showSuccessFailureDialogue(
+    //       context: globalNavigatorKey.currentContext!,
+    //       message: 'File transfer Successful',
+    //       isSuccess: true,
+    //       onTap: () async {
+    //         if (filePath.contains('timeline')) {
+    //           if (isDeviceListVisible) {
+    //             timelineFilePath = filePath;
+    //             deviceListAnimationController?.reverse(from: deviceListAnimationController?.value).then((value) async {
+    //               updateIsDeviceListVisible(false);
+    //               isTimelineScreen = true;
+    //               AppConstants.constant.globalRef?.read(navigationStackController).push(NavigationStackItem.timeline(robotId: selectedRobotUuid, mapsUuid: mapsUuid));
+    //             });
+    //             Navigator.pop(globalNavigatorKey.currentContext!);
+    //           }
+    //         } else {
+    //           logsPath = filePath;
+    //           logsPath = filePath;
+    //           Navigator.pop(globalNavigatorKey.currentContext!);
+    //           deviceListAnimationController?.reverse(from: deviceListAnimationController?.value).then((value) async {
+    //             updateIsDeviceListVisible(false);
+    //             isTimelineScreen = true;
+    //             AppConstants.constant.globalRef?.read(navigationStackController).push(NavigationStackItem.robotLogs(robotId: selectedRobotUuid, mapsUuid: mapsUuid));
+    //           });
+    //         }
+    //       },
+    //     );
+    //   }
+    // };
+    // SocketController.instance.onFileTransferFailed = (String error) {
+    //   if (globalNavigatorKey.currentContext != null) {
+    //     Navigator.pop(globalNavigatorKey.currentContext!);
+    //     showSuccessFailureDialogue(
+    //       context: globalNavigatorKey.currentContext!,
+    //       message: error,
+    //       onTap: () {
+    //         Navigator.pop(globalNavigatorKey.currentContext!);
+    //       },
+    //     );
+    //   }
+    // };
+    // SocketController.instance.onRobotList = (robotList) {
+    //   isRefreshingRobots = false;
+    //   newConnectedRobotList = robotList.where((robot) => !connectedRobotList.contains(robot)).toList();
+    //   newConnectedRobotList.forEach((robot) {
+    //     Future.delayed(Duration(milliseconds: 200), () {
+    //       SocketController.instance.sendDataInBroadcastData(robot, null);
+    //     });
+    //   });
+    //   connectedRobotList = robotList;
+    //   if (connectedRobotList.isNotEmpty) {
+    //     connectedRobotList.removeWhere((uuid) => !deviceList[mapsUuid]!.any((robot) => robot.deviceDetails?.firstOrNull?.uuid == uuid));
+    //   }
+    //   if (selectedRobotOnMap == null && selectRobotLiveUuid != null) {
+    //     selectedRobotOnMap = deviceList[mapsUuid]?.where((e) => e.deviceDetails?.firstOrNull?.uuid == selectRobotLiveUuid).firstOrNull;
+    //     Future.delayed(Duration(milliseconds: 500), () => SocketController.instance.sendDataInBroadcastData(selectedRobotUuid, SocketConstant.startContinuousPositionUpdate));
+    //     notifyListeners();
+    //   }
+    //   deviceList[mapsUuid] = deviceList[mapsUuid]!.map((device) => !connectedRobotList.contains(device.deviceDetails?.firstOrNull?.uuid) ? (device..pose = null) : device).toList();
+    //   if (!isTimelineScreen) {
+    //     if (selectedRobotOnMap != null && !connectedRobotList.contains(selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!)) {
+    //       selectedRobotOnMap = null;
+    //       show3DData = false;
+    //       threeDData = [];
+    //       laserData = [];
+    //       globalPath = null;
+    //       sessionData = null;
+    //       versionData = null;
+    //       sensorData = null;
+    //       systemData = null;
+    //       speedData = null;
+    //       showCameraView = false;
+    //       selectedCamera = null;
+    //       adsDataRes = null;
+    //       isDeviceSettingsVisible = false;
+    //       batteryData = {};
+    //       refreshContinousData(mapsUuid, isNotify: true);
+    //     }
+    //   }
+    //   notifyListeners();
+    // };
+    // SocketController.instance.onRobotPositionReceived = (robotId, mapsUuid, pose) {
+    //   deviceList[mapsUuid] =
+    //       deviceList[mapsUuid]?.map((e) {
+    //         if (e.deviceDetails?.firstOrNull?.uuid == robotId) {
+    //           e.pose = pose;
+    //           e.color = e.color;
+    //           return e;
+    //         }
+    //         return e;
+    //       }).toList() ??
+    //           [];
+    //   if (deviceList[mapsUuid]?.isNotEmpty ?? false) {
+    //     refreshPositionPainter(mapsUuid, robot: deviceList[mapsUuid]!.firstWhere((element) => element.deviceDetails?.firstOrNull?.uuid == robotId), isNotify: true);
+    //   }
+    //   if (isRecenter && selectedRobotOnMap != null && selectedRobotUuid == robotId) {
+    //     // Keep the robot centered like Google Maps.
+    //     recenterOnPose(mapsUuid, pose);
+    //   }
+    // };
+    // SocketController.instance.onContinuosDataReceived = (robotId, mapName, path, threeDData, laserData, simEvent, navModeEvent, sessionData, versionData, sensorData, systemData, speedData, deviceState, networkEvent, batteryData, adsDataRes) {
+    //   this.batteryData[robotId] = batteryData;
+    //   if (networkEvent != null) {
+    //     this.networkEvent[robotId] = networkEvent;
+    //   }
+    //   if (robotId == selectedRobotUuid) {
+    //     globalPath = path;
+    //     this.threeDData = threeDData ?? [];
+    //     this.laserData = laserData ?? [];
+    //     this.sessionData = sessionData;
+    //     this.versionData = versionData;
+    //     this.sensorData = sensorData;
+    //     this.simEvent = simEvent;
+    //     this.navModeEvent = navModeEvent;
+    //     this.adsDataRes = adsDataRes;
+    //     this.systemData = systemData;
+    //     this.speedData = speedData;
+    //     this.deviceState = deviceState;
+    //   }
+    //   refreshContinousData(mapsUuid, isNotify: true);
+    //   notifyListeners();
+    // };
+    // // demoSocketData();
   }
 
-  Waypoint? getPointAtPosition(String mapsUuid, double x, double y) {
-    Waypoint? tappedPoint;
-    for (var points in waypointsList[mapsUuid]!) {
-      if (((points.pose!.x!.convertXFromDasherPoint(mapVariablesData[mapsUuid]!) - x).abs() <= (10 / scale[mapsUuid]!)) && ((points.pose!.y!.convertYFromDasherPoint(mapVariablesData[mapsUuid]!) - y).abs() <= (10 / scale[mapsUuid]!))) {
-        tappedPoint = points;
-        break;
-      }
-    }
-    return tappedPoint;
-  }
+  // Waypoint? getPointAtPosition(String mapsUuid, double x, double y) {
+  //   Waypoint? tappedPoint;
+  //   for (var points in waypointsList[mapsUuid]!) {
+  //     if (((points.pose!.x!.convertXFromDasherPoint(mapVariablesData[mapsUuid]!) - x).abs() <= (10 / scale[mapsUuid]!)) && ((points.pose!.y!.convertYFromDasherPoint(mapVariablesData[mapsUuid]!) - y).abs() <= (10 / scale[mapsUuid]!))) {
+  //       tappedPoint = points;
+  //       break;
+  //     }
+  //   }
+  //   return tappedPoint;
+  // }
 
   MapEntry<String, List<List<double>>>? getRouteOnPosition(String mapsUuid, double x, double y) {
     MapEntry<String, List<List<double>>>? route;
     naviRoutes[mapsUuid]!.forEach((key, value) {
-      if (((value.first.first.convertXFromDasherPoint(mapVariablesData[mapsUuid]!) - x).abs() <= 5) && ((value.first.last.convertYFromDasherPoint(mapVariablesData[mapsUuid]!) - y).abs() <= 5)) {
-        route = MapEntry(key, value);
-      }
+      // if (((value.first.first.convertXFromDasherPoint(mapVariablesData[mapsUuid]!) - x).abs() <= 5) && ((value.first.last.convertYFromDasherPoint(mapVariablesData[mapsUuid]!) - y).abs() <= 5)) {
+      //   route = MapEntry(key, value);
+      // }
     });
     return route;
   }
@@ -902,7 +920,7 @@ class CanvasMapController extends ChangeNotifier {
 
   refreshRobots({String? destinationUuid, String? mapsUuid}) {
     isRefreshingRobots = true;
-    SocketController.instance.requestUserList(destinationUuid: destinationUuid, mapsUuid: mapsUuid);
+    // SocketController.instance.requestUserList(destinationUuid: destinationUuid, mapsUuid: mapsUuid);
     notifyListeners();
   }
 
@@ -920,26 +938,26 @@ class CanvasMapController extends ChangeNotifier {
     this.isAndroidMemoryDetailsVisible = isAndroidMemoryDetailsVisible;
     notifyListeners();
   }
+  //
+  // List<MapListData> mapList = [];
+  // UIState<MapListResponseModel> mapListDataState = UIState<MapListResponseModel>();
 
-  List<MapListData> mapList = [];
-  UIState<MapListResponseModel> mapListDataState = UIState<MapListResponseModel>();
-
-  Future<void> getMapList(String destinationUuid, {String? destinationFloorUuid}) async {
-    mapList.clear();
-    mapListDataState.isLoading = true;
-    notifyListeners();
-    final result = await storeMappingRepository.getMapsApi(destinationUuid: destinationUuid, destinationFloorUuid: destinationFloorUuid);
-    result.when(
-      success: (data) {
-        mapList.clear();
-        mapListDataState.isLoading = false;
-        mapListDataState.success = data as MapListResponseModel?;
-        mapList.addAll(data.data ?? []);
-      },
-      failure: (error) {},
-    );
-    notifyListeners();
-  }
+  // Future<void> getMapList(String destinationUuid, {String? destinationFloorUuid}) async {
+  //   mapList.clear();
+  //   mapListDataState.isLoading = true;
+  //   notifyListeners();
+  //   final result = await storeMappingRepository.getMapsApi(destinationUuid: destinationUuid, destinationFloorUuid: destinationFloorUuid);
+  //   result.when(
+  //     success: (data) {
+  //       mapList.clear();
+  //       mapListDataState.isLoading = false;
+  //       mapListDataState.success = data as MapListResponseModel?;
+  //       mapList.addAll(data.data ?? []);
+  //     },
+  //     failure: (error) {},
+  //   );
+  //   notifyListeners();
+  // }
 
   bool show3DData = false;
 
@@ -959,211 +977,211 @@ class CanvasMapController extends ChangeNotifier {
 
   String? selectedMode;
 
-  updateSelectedMode(String mode, String mapName) {
-    switch (mode) {
-      case virtualWallStr:
-        updatedVirtualWallPoints.clear();
-        eraseVirtualWallPoint = null;
-        virtualWallPoint = null;
-        eraseVirtualWall = false;
-        getWaypoints(mapName);
-        break;
-      case navigationStr:
-        navigatePose = null;
-        navigationPoint = null;
-        break;
-      case relocateStr:
-        relocationPoint = null;
-        break;
-      case routeStr:
-        newRoutePoints.clear();
-        getWaypoints(mapName);
-        break;
-      default:
-        break;
-    }
-    currentMouseCursorPosition = null;
-    if (selectedMode == mode) {
-      selectedMode = null;
-      notifyListeners();
-    } else {
-      selectedMode = null;
-      notifyListeners();
-      Future.delayed(Duration(milliseconds: 100), () {
-        selectedMode = mode;
-        notifyListeners();
-      });
-    }
-  }
+  // updateSelectedMode(String mode, String mapName) {
+  //   switch (mode) {
+  //     case virtualWallStr:
+  //       updatedVirtualWallPoints.clear();
+  //       eraseVirtualWallPoint = null;
+  //       virtualWallPoint = null;
+  //       eraseVirtualWall = false;
+  //       // getWaypoints(mapName);
+  //       break;
+  //     case navigationStr:
+  //       navigatePose = null;
+  //       navigationPoint = null;
+  //       break;
+  //     case relocateStr:
+  //       relocationPoint = null;
+  //       break;
+  //     case routeStr:
+  //       newRoutePoints.clear();
+  //       // getWaypoints(mapName);
+  //       break;
+  //     default:
+  //       break;
+  //   }
+  //   currentMouseCursorPosition = null;
+  //   if (selectedMode == mode) {
+  //     selectedMode = null;
+  //     notifyListeners();
+  //   } else {
+  //     selectedMode = null;
+  //     notifyListeners();
+  //     Future.delayed(Duration(milliseconds: 100), () {
+  //       selectedMode = mode;
+  //       notifyListeners();
+  //     });
+  //   }
+  // }
 
   ////-------------------------------------- Relocation ----------------------------------------------///
 
-  RelocationResponseModel? relocationPoint;
-
-  void markRelocationStartPoint(String mapsUuid, double x, double y) {
-    relocationPoint = null;
-    relocationPoint = RelocationResponseModel(
-      startPoint: RelocationPoint(x: x, y: y),
-      endPoint: RelocationPoint(x: x, y: y),
-      theta: 0,
-    );
-    notifyListeners();
-    refreshRelocationPainter(mapsUuid, pose: relocationPoint, isNotify: true, color: selectedRobotOnMap?.color);
-  }
-
-  void updateRelocationPoint(String mapsUuid, double x, double y) {
-    relocationPoint?.endPoint.x = x;
-    relocationPoint?.endPoint.y = y;
-    if (relocationPoint != null) {
-      relocationPoint!.theta = Offset(relocationPoint!.startPoint.x, relocationPoint!.startPoint.y).calculateTheta(Offset(relocationPoint!.endPoint.x, relocationPoint!.endPoint.y));
-    }
-    notifyListeners();
-    refreshRelocationPainter(mapsUuid, pose: relocationPoint, isNotify: true, color: selectedRobotOnMap?.color);
-  }
-
-  void markRelocationEndPoint(String mapsUuid, BuildContext context, {bool relocate = true}) {
-    if (relocationPoint != null) {
-      relocationPoint!.theta = Offset(relocationPoint!.startPoint.x, relocationPoint!.startPoint.y).calculateTheta(Offset(relocationPoint!.endPoint.x, relocationPoint!.endPoint.y));
-      Pose relocatePose = Pose(
-        x: relocationPoint!.startPoint.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!),
-        y: relocationPoint!.startPoint.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!),
-        theta: relocationPoint!.theta,
-      );
-      if (relocate) {
-        setToastMessage('Relocate: x:${relocatePose.x?.toStringAsFixed(2)}, y:${relocatePose.y?.toStringAsFixed(2)}, degree:${relocatePose.theta?.toStringAsFixed(2)}');
-        SocketController.instance.sendDataInBroadcastData(selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!, SocketConstant.relocate, data: relocatePose.toJson());
-      }
-    }
-    relocationPoint = null;
-    notifyListeners();
-    refreshRelocationPainter(mapsUuid, pose: relocationPoint, isNotify: true, color: selectedRobotOnMap?.color);
-  }
-
-  List<double>? currentMouseCursorPosition;
-
-  void updateCurrentCursorPosition(String mapsUuid, double x, double y) {
-    currentMouseCursorPosition = [x, y];
-    refreshCurrentMousePosition(mapsUuid, isNotify: true);
-    refreshRoutesPainter(mapsUuid);
-    notifyListeners();
-  }
+  // RelocationResponseModel? relocationPoint;
+  //
+  // void markRelocationStartPoint(String mapsUuid, double x, double y) {
+  //   relocationPoint = null;
+  //   relocationPoint = RelocationResponseModel(
+  //     startPoint: RelocationPoint(x: x, y: y),
+  //     endPoint: RelocationPoint(x: x, y: y),
+  //     theta: 0,
+  //   );
+  //   notifyListeners();
+  //   refreshRelocationPainter(mapsUuid, pose: relocationPoint, isNotify: true, color: selectedRobotOnMap?.color);
+  // }
+  //
+  // void updateRelocationPoint(String mapsUuid, double x, double y) {
+  //   relocationPoint?.endPoint.x = x;
+  //   relocationPoint?.endPoint.y = y;
+  //   if (relocationPoint != null) {
+  //     relocationPoint!.theta = Offset(relocationPoint!.startPoint.x, relocationPoint!.startPoint.y).calculateTheta(Offset(relocationPoint!.endPoint.x, relocationPoint!.endPoint.y));
+  //   }
+  //   notifyListeners();
+  //   refreshRelocationPainter(mapsUuid, pose: relocationPoint, isNotify: true, color: selectedRobotOnMap?.color);
+  // }
+  //
+  // void markRelocationEndPoint(String mapsUuid, BuildContext context, {bool relocate = true}) {
+  //   if (relocationPoint != null) {
+  //     relocationPoint!.theta = Offset(relocationPoint!.startPoint.x, relocationPoint!.startPoint.y).calculateTheta(Offset(relocationPoint!.endPoint.x, relocationPoint!.endPoint.y));
+  //     Pose relocatePose = Pose(
+  //       x: relocationPoint!.startPoint.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!),
+  //       y: relocationPoint!.startPoint.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!),
+  //       theta: relocationPoint!.theta,
+  //     );
+  //     if (relocate) {
+  //       setToastMessage('Relocate: x:${relocatePose.x?.toStringAsFixed(2)}, y:${relocatePose.y?.toStringAsFixed(2)}, degree:${relocatePose.theta?.toStringAsFixed(2)}');
+  //       SocketController.instance.sendDataInBroadcastData(selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!, SocketConstant.relocate, data: relocatePose.toJson());
+  //     }
+  //   }
+  //   relocationPoint = null;
+  //   notifyListeners();
+  //   refreshRelocationPainter(mapsUuid, pose: relocationPoint, isNotify: true, color: selectedRobotOnMap?.color);
+  // }
+  //
+  // List<double>? currentMouseCursorPosition;
+  //
+  // void updateCurrentCursorPosition(String mapsUuid, double x, double y) {
+  //   currentMouseCursorPosition = [x, y];
+  //   refreshCurrentMousePosition(mapsUuid, isNotify: true);
+  //   refreshRoutesPainter(mapsUuid);
+  //   notifyListeners();
+  // }
 
   ////-------------------------------------- Navigation ----------------------------------------------///
 
-  List<double> navigationDoubleTapPoint = [];
-
-  RelocationResponseModel? navigationPoint;
-
-  void markNavigationStartPoint(String mapsUuid, double x, double y) {
-    navigationPoint = null;
-    navigatePose = null;
-    navigationPoint = RelocationResponseModel(
-      startPoint: RelocationPoint(x: x, y: y),
-      endPoint: RelocationPoint(x: x, y: y),
-      theta: 0,
-    );
-    notifyListeners();
-    refreshRelocationPainter(mapsUuid, pose: navigationPoint, isNotify: true, color: selectedRobotOnMap?.color);
-  }
-
-  void updateNavigationPoint(String mapsUuid, double x, double y) {
-    navigationPoint?.endPoint.x = x;
-    navigationPoint?.endPoint.y = y;
-    if (navigationPoint != null) {
-      navigationPoint!.theta = Offset(navigationPoint!.startPoint.x, navigationPoint!.startPoint.y).calculateTheta(Offset(navigationPoint!.endPoint.x, navigationPoint!.endPoint.y));
-    }
-    notifyListeners();
-    refreshRelocationPainter(mapsUuid, pose: navigationPoint, isNotify: true, color: selectedRobotOnMap?.color);
-  }
-
-  Pose? navigatePose;
-
-  void markNavigationEndPoint(String mapsUuid) {
-    if (navigationPoint != null) {
-      navigationPoint!.theta = Offset(navigationPoint!.startPoint.x, navigationPoint!.startPoint.y).calculateTheta(Offset(navigationPoint!.endPoint.x, navigationPoint!.endPoint.y));
-      navigatePose = Pose(
-        x: navigationPoint!.startPoint.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!),
-        y: navigationPoint!.startPoint.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!),
-        theta: navigationPoint!.theta,
-      );
-    }
-    setToastMessage('Navigate to: x:${navigatePose?.x?.toStringAsFixed(2)}, y:${navigatePose?.y?.toStringAsFixed(2)}, degree:${navigatePose?.theta?.toStringAsFixed(2)}');
-    SocketController.instance.sendDataInBroadcastData(selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!, SocketConstant.navigate, data: navigatePose?.toJson());
-    navigationPoint = null;
-    refreshRelocationPainter(mapsUuid, pose: navigationPoint, isNotify: true, color: selectedRobotOnMap?.color);
-    notifyListeners();
-  }
+  // List<double> navigationDoubleTapPoint = [];
+  //
+  // RelocationResponseModel? navigationPoint;
+  //
+  // void markNavigationStartPoint(String mapsUuid, double x, double y) {
+  //   navigationPoint = null;
+  //   navigatePose = null;
+  //   navigationPoint = RelocationResponseModel(
+  //     startPoint: RelocationPoint(x: x, y: y),
+  //     endPoint: RelocationPoint(x: x, y: y),
+  //     theta: 0,
+  //   );
+  //   notifyListeners();
+  //   refreshRelocationPainter(mapsUuid, pose: navigationPoint, isNotify: true, color: selectedRobotOnMap?.color);
+  // }
+  //
+  // void updateNavigationPoint(String mapsUuid, double x, double y) {
+  //   navigationPoint?.endPoint.x = x;
+  //   navigationPoint?.endPoint.y = y;
+  //   if (navigationPoint != null) {
+  //     navigationPoint!.theta = Offset(navigationPoint!.startPoint.x, navigationPoint!.startPoint.y).calculateTheta(Offset(navigationPoint!.endPoint.x, navigationPoint!.endPoint.y));
+  //   }
+  //   notifyListeners();
+  //   refreshRelocationPainter(mapsUuid, pose: navigationPoint, isNotify: true, color: selectedRobotOnMap?.color);
+  // }
+  //
+  // Pose? navigatePose;
+  //
+  // void markNavigationEndPoint(String mapsUuid) {
+  //   if (navigationPoint != null) {
+  //     navigationPoint!.theta = Offset(navigationPoint!.startPoint.x, navigationPoint!.startPoint.y).calculateTheta(Offset(navigationPoint!.endPoint.x, navigationPoint!.endPoint.y));
+  //     navigatePose = Pose(
+  //       x: navigationPoint!.startPoint.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!),
+  //       y: navigationPoint!.startPoint.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!),
+  //       theta: navigationPoint!.theta,
+  //     );
+  //   }
+  //   setToastMessage('Navigate to: x:${navigatePose?.x?.toStringAsFixed(2)}, y:${navigatePose?.y?.toStringAsFixed(2)}, degree:${navigatePose?.theta?.toStringAsFixed(2)}');
+  //   SocketController.instance.sendDataInBroadcastData(selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!, SocketConstant.navigate, data: navigatePose?.toJson());
+  //   navigationPoint = null;
+  //   refreshRelocationPainter(mapsUuid, pose: navigationPoint, isNotify: true, color: selectedRobotOnMap?.color);
+  //   notifyListeners();
+  // }
 
   ///////// --------------------------- Virtual Wall Screen---------------------------------////////
 
-  VirtualWallPoint? virtualWallPoint;
-  List<VirtualWallPoint> updatedVirtualWallPoints = [];
-  bool point1Marked = false;
-
-  void markPoint1(String mapsUuid, double x, double y) {
-    virtualWallPoint = VirtualWallPoint(
-      pose: VirtualWallPose(
-        point1: Point(x: x, y: y),
-        point2: Point(x: x, y: y),
-      ),
-    );
-    point1Marked = true;
-    refreshVirtualWallPainter(mapsUuid, isNotify: true);
-  }
-
-  void updatedMarkPoint(String mapsUuid, double x, double y) {
-    virtualWallPoint?.pose.point2.x = x;
-    virtualWallPoint?.pose.point2.y = y;
-    refreshVirtualWallPainter(mapsUuid, isNotify: true);
-  }
-
-  void markPoint2(String mapsUuid, double x, double y) {
-    virtualWallPoint?.pose.point2.x = x;
-    virtualWallPoint?.pose.point2.y = y;
-    virtualWallPoint?.pose.point1.x = virtualWallPoint?.pose.point1.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
-    virtualWallPoint?.pose.point1.y = virtualWallPoint?.pose.point1.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
-    virtualWallPoint?.pose.point2.x = virtualWallPoint?.pose.point2.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
-    virtualWallPoint?.pose.point2.y = virtualWallPoint?.pose.point2.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
-    if (virtualWallPoint != null) {
-      updatedVirtualWallPoints.add(virtualWallPoint!);
-      virtualWallPoint = VirtualWallPoint(
-        pose: VirtualWallPose(point1: Point(x: 0, y: 0), point2: Point(x: 0, y: 0)),
-      );
-      point1Marked = false;
-      refreshVirtualWallPainter(mapsUuid, isNotify: true);
-    }
-  }
-
-  ///Save changes in virtual wall
-  Future<void> saveVirtualWall(String mapsUuid) async {
-    List<VirtualWallPoint> finalPoints = virtualWall[mapsUuid]! + updatedVirtualWallPoints;
-    eraseVirtualWall = false;
-    updatedVirtualWallPoints.clear();
-    virtualWallPoint = null;
-    SocketController.instance.sendDataInBroadcastData(selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!, SocketConstant.saveWalls, data: VirtualWallResponseModel(waypoints: finalPoints).toJson());
-  }
-
-  ///Save changes in routes
-  Future<void> saveRoutes(String mapsUuid, String routeName) async {
-    if (selectedPointTypeList[mapsUuid] == null) selectedPointTypeList[mapsUuid] = [];
-    naviRoutes[mapsUuid]!.addAll({routeName: newRoutePoints});
-    if (!selectedPointTypeList[mapsUuid]!.contains(PointType.ROUTE)) {
-      selectedPointTypeList[mapsUuid]!.add(PointType.ROUTE);
-    }
-    selectedMode = null;
-    SocketController.instance.sendDataInBroadcastData(selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!, SocketConstant.saveRoutes, data: naviRoutes[mapsUuid]!);
-  }
-
+  // VirtualWallPoint? virtualWallPoint;
+  // List<VirtualWallPoint> updatedVirtualWallPoints = [];
+  // bool point1Marked = false;
+  //
+  // void markPoint1(String mapsUuid, double x, double y) {
+  //   virtualWallPoint = VirtualWallPoint(
+  //     pose: VirtualWallPose(
+  //       point1: Point(x: x, y: y),
+  //       point2: Point(x: x, y: y),
+  //     ),
+  //   );
+  //   point1Marked = true;
+  //   refreshVirtualWallPainter(mapsUuid, isNotify: true);
+  // }
+  //
+  // void updatedMarkPoint(String mapsUuid, double x, double y) {
+  //   virtualWallPoint?.pose.point2.x = x;
+  //   virtualWallPoint?.pose.point2.y = y;
+  //   refreshVirtualWallPainter(mapsUuid, isNotify: true);
+  // }
+  //
+  // void markPoint2(String mapsUuid, double x, double y) {
+  //   virtualWallPoint?.pose.point2.x = x;
+  //   virtualWallPoint?.pose.point2.y = y;
+  //   virtualWallPoint?.pose.point1.x = virtualWallPoint?.pose.point1.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
+  //   virtualWallPoint?.pose.point1.y = virtualWallPoint?.pose.point1.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
+  //   virtualWallPoint?.pose.point2.x = virtualWallPoint?.pose.point2.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
+  //   virtualWallPoint?.pose.point2.y = virtualWallPoint?.pose.point2.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
+  //   if (virtualWallPoint != null) {
+  //     updatedVirtualWallPoints.add(virtualWallPoint!);
+  //     virtualWallPoint = VirtualWallPoint(
+  //       pose: VirtualWallPose(point1: Point(x: 0, y: 0), point2: Point(x: 0, y: 0)),
+  //     );
+  //     point1Marked = false;
+  //     refreshVirtualWallPainter(mapsUuid, isNotify: true);
+  //   }
+  // }
+  //
+  // ///Save changes in virtual wall
+  // Future<void> saveVirtualWall(String mapsUuid) async {
+  //   List<VirtualWallPoint> finalPoints = virtualWall[mapsUuid]! + updatedVirtualWallPoints;
+  //   eraseVirtualWall = false;
+  //   updatedVirtualWallPoints.clear();
+  //   virtualWallPoint = null;
+  //   SocketController.instance.sendDataInBroadcastData(selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!, SocketConstant.saveWalls, data: VirtualWallResponseModel(waypoints: finalPoints).toJson());
+  // }
+  //
+  // ///Save changes in routes
+  // Future<void> saveRoutes(String mapsUuid, String routeName) async {
+  //   if (selectedPointTypeList[mapsUuid] == null) selectedPointTypeList[mapsUuid] = [];
+  //   naviRoutes[mapsUuid]!.addAll({routeName: newRoutePoints});
+  //   if (!selectedPointTypeList[mapsUuid]!.contains(PointType.ROUTE)) {
+  //     selectedPointTypeList[mapsUuid]!.add(PointType.ROUTE);
+  //   }
+  //   selectedMode = null;
+  //   SocketController.instance.sendDataInBroadcastData(selectedRobotOnMap!.deviceDetails!.firstOrNull!.uuid!, SocketConstant.saveRoutes, data: naviRoutes[mapsUuid]!);
+  // }
+  //
   bool eraseVirtualWall = false;
-
-  updateEraseVirtualWall(bool eraseVirtualWall, String mapsUuid) {
-    this.eraseVirtualWall = eraseVirtualWall;
-    eraseVirtualWallPoint = null;
-    virtualWallPoint = null;
-    updatedVirtualWallPoints.clear();
-    getWaypoints(mapsUuid);
-    notifyListeners();
-  }
+  //
+  // updateEraseVirtualWall(bool eraseVirtualWall, String mapsUuid) {
+  //   this.eraseVirtualWall = eraseVirtualWall;
+  //   eraseVirtualWallPoint = null;
+  //   virtualWallPoint = null;
+  //   updatedVirtualWallPoints.clear();
+  //   getWaypoints(mapsUuid);
+  //   notifyListeners();
+  // }
 
   EraseVirtualWallPoint? eraseVirtualWallPoint;
 
@@ -1196,14 +1214,14 @@ class CanvasMapController extends ChangeNotifier {
   }
 
   void endUpdateErasedMarkPoint(String mapsUuid) {
-    final wallPoint1X = eraseVirtualWallPoint!.pose.point1.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!);
-    final wallPoint1Y = eraseVirtualWallPoint!.pose.point1.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!);
-    final wallPoint2X = eraseVirtualWallPoint!.pose.point2.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!);
-    final wallPoint2Y = eraseVirtualWallPoint!.pose.point2.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!);
-    final wallPoint3X = eraseVirtualWallPoint!.pose.point3.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!);
-    final wallPoint3Y = eraseVirtualWallPoint!.pose.point3.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!);
-    final wallPoint4X = eraseVirtualWallPoint!.pose.point4.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!);
-    final wallPoint4Y = eraseVirtualWallPoint!.pose.point4.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!);
+    final wallPoint1X = eraseVirtualWallPoint!.pose.point1.x.convertXToDasherPoint(mapVariablesData!);
+    final wallPoint1Y = eraseVirtualWallPoint!.pose.point1.y.convertYToDasherPoint(mapVariablesData!);
+    final wallPoint2X = eraseVirtualWallPoint!.pose.point2.x.convertXToDasherPoint(mapVariablesData!);
+    final wallPoint2Y = eraseVirtualWallPoint!.pose.point2.y.convertYToDasherPoint(mapVariablesData!);
+    final wallPoint3X = eraseVirtualWallPoint!.pose.point3.x.convertXToDasherPoint(mapVariablesData!);
+    final wallPoint3Y = eraseVirtualWallPoint!.pose.point3.y.convertYToDasherPoint(mapVariablesData!);
+    final wallPoint4X = eraseVirtualWallPoint!.pose.point4.x.convertXToDasherPoint(mapVariablesData!);
+    final wallPoint4Y = eraseVirtualWallPoint!.pose.point4.y.convertYToDasherPoint(mapVariablesData!);
     List<VirtualWallPoint> virtualWallAffectedList = [];
     eraseVirtualWallPoint = null;
     for (var walls in virtualWall[mapsUuid]!) {
@@ -1279,14 +1297,14 @@ class CanvasMapController extends ChangeNotifier {
     newRoutePoints.add([x, y]);
   }
 
-  void onDoubleTapWhileCreatingRoute(String mapsUuid, double x, double y) async {
-    newRoutePoints.add([x, y]);
-    for (var routePoint in newRoutePoints) {
-      routePoint.first = routePoint.first.convertXToDasherPoint(mapVariablesData[mapsUuid]!);
-      routePoint.last = routePoint.last.convertYToDasherPoint(mapVariablesData[mapsUuid]!);
-    }
-    currentMouseCursorPosition = null;
-  }
+  // void onDoubleTapWhileCreatingRoute(String mapsUuid, double x, double y) async {
+  //   newRoutePoints.add([x, y]);
+  //   for (var routePoint in newRoutePoints) {
+  //     routePoint.first = routePoint.first.convertXToDasherPoint(mapVariablesData[mapsUuid]!);
+  //     routePoint.last = routePoint.last.convertYToDasherPoint(mapVariablesData[mapsUuid]!);
+  //   }
+  //   currentMouseCursorPosition = null;
+  // }
 
   List<List<double>> newRoutePoints = [];
 
@@ -1585,7 +1603,7 @@ class CanvasMapController extends ChangeNotifier {
           refreshPositionPainter(mapsUuid, robot: deviceList[mapsUuid]!.firstWhere((el) => el.deviceDetails?.firstOrNull?.uuid == robotId), isNotify: true);
         } catch (_) {}
       }
-      SocketController.instance.onContinuosDataReceived?.call(robotId, mapsUuid, <List<double>>[], <List<double>>[], <List<double>>[], null, null, null, null, null, null, null, null, null, null, null);
+      // SocketController.instance.onContinuosDataReceived?.call(robotId, mapsUuid, <List<double>>[], <List<double>>[], <List<double>>[], null, null, null, null, null, null, null, null, null, null, null);
       return;
     }
     double? robotX;
@@ -1593,11 +1611,11 @@ class CanvasMapController extends ChangeNotifier {
     if (response['p'] != null) {
       final poseJson = response['p'];
       Pose pose = Pose.fromTimelineJson(poseJson);
-      SocketController.instance.onRobotPositionReceived?.call(robotId, mapsUuid, pose);
+      // SocketController.instance.onRobotPositionReceived?.call(robotId, mapsUuid, pose);
       selectedRobotOnMap?.pose = pose;
-      final xy = SocketController.instance.extractPoseXY(poseJson);
-      robotX = xy.$1;
-      robotY = xy.$2;
+      // final xy = SocketController.instance.extractPoseXY(poseJson);
+      // robotX = xy.$1;
+      // robotY = xy.$2;
     }
     List<List<double>>? globalPath;
     var globalPathRes = response['gp'];
@@ -1608,11 +1626,11 @@ class CanvasMapController extends ChangeNotifier {
         (globalPathRes as List).forEach((element) {
           globalPathUnPolished.add(element);
         });
-        globalPath = LaserPathPolisher.instance.polish(globalPathUnPolished);
+        // globalPath = LaserPathPolisher.instance.polish(globalPathUnPolished);
 
         // Remove path points that are already behind the robot (keep only the remaining forward path)
         if (robotX != null && robotY != null && (globalPath.isNotEmpty ?? false)) {
-          globalPath = SocketController.instance.trimPathBehindRobot(globalPath, robotX, robotY);
+          // globalPath = SocketController.instance.trimPathBehindRobot(globalPath, robotX, robotY);
         }
       } catch (e) {}
     }
@@ -1674,12 +1692,12 @@ class CanvasMapController extends ChangeNotifier {
       networkEvent = NetworkEvent.fromTimelineJson(networkEventRes);
     }
 
-    if (AppConstants.constant.globalRef?.read(canvasMapController).selectedRobotUuid == robotId) {
-      if (sessionData?.isEmergencyPressed != null) {
-        AppConstants.constant.globalRef?.read(canvasMapController).isEmergencyPressed = sessionData?.isEmergencyPressed ?? true;
-        AppConstants.constant.globalRef?.read(canvasMapController).notifyListeners();
-      }
-    }
+    // if (AppConstants.constant.globalRef?.read(canvasMapController).selectedRobotUuid == robotId) {
+    //   if (sessionData?.isEmergencyPressed != null) {
+    //     // AppConstants.constant.globalRef?.read(canvasMapController).isEmergencyPressed = sessionData?.isEmergencyPressed ?? true;
+    //     // AppConstants.constant.globalRef?.read(canvasMapController).notifyListeners();
+    //   }
+    // }
 
     ///Version Data
     VersionData? versionData;
@@ -1703,11 +1721,11 @@ class CanvasMapController extends ChangeNotifier {
     }
 
     ///Device State
-    DeviceStateEvent? deviceState;
-    var deviceStatsRes = response['ds'];
-    if (deviceStatsRes != null) {
-      deviceState = DeviceStateEvent.fromTimelineJson(deviceStatsRes);
-    }
+    // DeviceStateEvent? deviceState;
+    // var deviceStatsRes = response['ds'];
+    // if (deviceStatsRes != null) {
+    //   deviceState = DeviceStateEvent.fromTimelineJson(deviceStatsRes);
+    // }
 
     ///Speed Data
     SpeedData? speedData;
@@ -1719,26 +1737,32 @@ class CanvasMapController extends ChangeNotifier {
     ///Ads Data
     Map<String, dynamic>? adsDataRes = response['ad'];
 
-    SocketController.instance.onContinuosDataReceived?.call(
-      robotId,
-      mapsUuid,
-      globalPath,
-      threeDData,
-      laserData,
-      simEvent,
-      navModeEvent,
-      sessionData,
-      versionData,
-      sensorData,
-      systemData,
-      speedData,
-      deviceState,
-      networkEvent,
-      batteryData,
-      adsDataRes,
-    );
+    // SocketController.instance.onContinuosDataReceived?.call(
+    //   robotId,
+    //   mapsUuid,
+    //   globalPath,
+    //   threeDData,
+    //   laserData,
+    //   simEvent,
+    //   navModeEvent,
+    //   sessionData,
+    //   versionData,
+    //   sensorData,
+    //   systemData,
+    //   speedData,
+    //   deviceState,
+    //   networkEvent,
+    //   batteryData,
+    //   adsDataRes,
+    // );
   }
 
   final List<int> bookmarks = [];
 
 }
+
+
+const String relocateStr = 'Relocate';
+const String navigationStr = 'Navigation';
+const String virtualWallStr = 'Virtual Wall';
+const String routeStr = 'Route';

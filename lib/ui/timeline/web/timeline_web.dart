@@ -2,17 +2,25 @@ import 'dart:math';
 import 'dart:ui';
 import 'package:chassis_timeline_viewer/framework/controller/canvas_map/canvas_map_controller.dart';
 import 'package:chassis_timeline_viewer/framework/utils/extension/context_extension.dart';
+import 'package:chassis_timeline_viewer/framework/utils/extension/string_extension.dart';
 import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/android_data_widget.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/custom_tool_tip.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/map_information_widget.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/painter/continous_painter_widget.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/painter/map_painter_widget.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/painter/position_painter_widget.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/painter/routes_painter_widget.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/point_type_selector_widget.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/recenter_helper_pill.dart';
 import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/ros_data_widget.dart';
-import 'package:chassis_timeline_viewer/ui/canvas_map/web/painter/continous_painter_widget.dart';
-import 'package:chassis_timeline_viewer/ui/canvas_map/web/painter/map_painter_widget.dart';
-import 'package:chassis_timeline_viewer/ui/canvas_map/web/painter/position_painter_widget.dart';
-import 'package:chassis_timeline_viewer/ui/canvas_map/web/painter/routes_painter_widget.dart';
-import 'package:chassis_timeline_viewer/ui/canvas_map/web/painter/virtual_wall_painter_widget.dart';
-import 'package:chassis_timeline_viewer/ui/canvas_map/web/painter/waypoint_painter_widget.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/system_load_widget.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/painter/virtual_wall_painter_widget.dart';
+import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/painter/waypoint_painter_widget.dart';
 import 'package:chassis_timeline_viewer/ui/timeline/timeline_keybaord_handler.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_constants.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
+import 'package:chassis_timeline_viewer/ui/utils/widgets/common_anim_loader.dart';
+import 'package:chassis_timeline_viewer/ui/utils/widgets/common_text.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
@@ -43,7 +51,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
       final canvasMapWatch = ref.read(canvasMapController);
       canvasMapWatch.speedList = [1, 2, 4, 8, 16, 32, 64, 128];
       canvasMapWatch.speedIndex = 0;
-      canvasMapWatch.selectedRobotOnMap = canvasMapWatch.deviceList[widget.mapsUuid]?.where((device) => device.deviceDetails?.firstOrNull?.uuid == widget.robotUuid).firstOrNull;
+      canvasMapWatch.selectedRobotOnMap = canvasMapWatch.deviceList[canvasMapWatch.mapsUuid]?.where((device) => device.deviceDetails?.firstOrNull?.uuid == canvasMapWatch.robotId).firstOrNull;
       canvasMapWatch.readTimelineFile();
       canvasMapWatch.show3DData = false;
       canvasMapWatch.threeDData = [];
@@ -61,7 +69,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
       canvasMapWatch.isDeviceListVisible = false;
       canvasMapWatch.isDeviceSettingsVisible = false;
       canvasMapWatch.batteryData = {};
-      canvasMapWatch.listenToRobotPosition(widget.mapsUuid);
+      canvasMapWatch.listenToRobotPosition(canvasMapWatch.mapsUuid);
       canvasMapWatch.notifyListeners();
       _canvasCtrl = canvasMapWatch;
     });
@@ -78,7 +86,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
     if (canvasMapWatch?.selectedRobotOnMap != null) {
       canvasMapWatch?.isTimelinePlaying = false;
       canvasMapWatch?.timelineTimer?.cancel();
-      canvasMapWatch?.deviceList[widget.mapsUuid] = canvasMapWatch.deviceList[widget.mapsUuid]!.map((device) => device..pose = null).toList();
+      canvasMapWatch?.deviceList[canvasMapWatch.mapsUuid] = canvasMapWatch.deviceList[canvasMapWatch.mapsUuid]!.map((device) => device..pose = null).toList();
       canvasMapWatch?.isTimelineScreen = false;
       canvasMapWatch?.show3DData = false;
       canvasMapWatch?.threeDData = [];
@@ -93,8 +101,8 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
       canvasMapWatch?.speedData = null;
       canvasMapWatch?.showCameraView = false;
       canvasMapWatch?.selectedCamera = null;
-      SocketController.instance.requestUserList(mapsUuid: widget.mapsUuid, destinationUuid: canvasMapWatch?.selectedRobotOnMap?.destinationUuid);
-      canvasMapWatch?.refreshContinousData(widget.mapsUuid, isNotify: false);
+      // SocketController.instance.requestUserList(mapsUuid: widget.mapsUuid, destinationUuid: canvasMapWatch?.selectedRobotOnMap?.destinationUuid);
+      canvasMapWatch?.refreshContinousData(canvasMapWatch.mapsUuid, isNotify: false);
       Future.delayed(Duration(milliseconds: 150), () => canvasMapWatch?.notifyListeners());
     }
     super.dispose();
@@ -130,7 +138,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
 
   Widget bodyWidget() {
     final canvasMapWatch = ref.watch(canvasMapController);
-    if (canvasMapWatch.mapVariablesData[widget.mapsUuid] == null) return Offstage();
+    if (canvasMapWatch.mapVariablesData == null) return Offstage();
     return Stack(
       children: [
         Container(
@@ -140,7 +148,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
           child: InteractiveViewer(
             minScale: 0.2,
             maxScale: 50,
-            transformationController: canvasMapWatch.transformationController[widget.mapsUuid]!,
+            transformationController: canvasMapWatch.transformationController[canvasMapWatch.mapsUuid]!,
             constrained: false,
             panAxis: PanAxis.free,
             trackpadScrollCausesScale: true,
@@ -153,13 +161,13 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
             },
             onInteractionUpdate: (scaleUpdate) {
               // Get the current transformation matrix
-              final Matrix4 currentMatrix = canvasMapWatch.transformationController[widget.mapsUuid]!.value;
+              final Matrix4 currentMatrix = canvasMapWatch.transformationController[canvasMapWatch.mapsUuid]!.value;
               // Extract the scale factor from the transformation matrix
               final double scaleX = currentMatrix.getMaxScaleOnAxis();
-              if (canvasMapWatch.scale[widget.mapsUuid] != scaleX) {
-                canvasMapWatch.scale[widget.mapsUuid] = scaleX;
-                canvasMapWatch.updateBackgroundAlphaForMap(widget.mapsUuid);
-                canvasMapWatch.refreshEntireCanvas(widget.mapsUuid);
+              if (canvasMapWatch.scale[canvasMapWatch.mapsUuid] != scaleX) {
+                canvasMapWatch.scale[canvasMapWatch.mapsUuid] = scaleX;
+                canvasMapWatch.updateBackgroundAlphaForMap(canvasMapWatch.mapsUuid);
+                canvasMapWatch.refreshEntireCanvas(canvasMapWatch.mapsUuid);
                 canvasMapWatch.currentMapResponseModel.forEach((key, value) {
                   canvasMapWatch.deviceList[key]?.forEach((element) {
                     canvasMapWatch.refreshPositionPainter(key, robot: element, isNotify: true);
@@ -202,11 +210,11 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                       SizedBox(height: context.height * 0.01),
                       Row(
                         children: [
-                          RecenterHelperPill(mapsUuid: widget.mapsUuid),
+                          RecenterHelperPill(mapsUuid: canvasMapWatch.mapsUuid),
                         ],
                       ),
                       SizedBox(height: context.height * 0.01),
-                      MapInformationWidget(mapsUuid: widget.mapsUuid),
+                      MapInformationWidget(),
                     ],
                   ],
                 ),
@@ -221,17 +229,17 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
             top: context.height * 0.015,
             child: Column(
               children: [
-                PointTypeSelectorWidget(mapsUuid: widget.mapsUuid),
+                PointTypeSelectorWidget(mapsUuid:canvasMapWatch.mapsUuid),
                 SizedBox(height: context.height * 0.01),
                 if (canvasMapWatch.showCameraView || !canvasMapWatch.isDeviceListVisible && !canvasMapWatch.isDeviceSettingsVisible && canvasMapWatch.systemData != null) SystemLoadWidget(),
               ],
             ),
           ),
 
-        if (canvasMapWatch.downloadValue[widget.mapsUuid] != null)
+        if (canvasMapWatch.downloadValue[canvasMapWatch.mapsUuid] != null)
           Builder(
             builder: (context) {
-              return CommonAnimLoader(value: canvasMapWatch.downloadValue[widget.mapsUuid]);
+              return CommonAnimLoader(value: canvasMapWatch.downloadValue[canvasMapWatch.mapsUuid]);
             },
           ),
 
