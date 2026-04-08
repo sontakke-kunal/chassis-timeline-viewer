@@ -13,8 +13,5 @@ Future<void> configureMainDependencies({required String environment}) async {
 
 abstract class Env {
   static const development = 'development';
-  static const kodyinfotech = 'kodyinfotech';
-  static const kodyrobots = 'kodyrobots';
-  static const falcontechrobotics = 'falcontechrobotics';
-  static const List<String> environments = [Env.development, Env.kodyinfotech, Env.kodyrobots, Env.falcontechrobotics];
+  static const List<String> environments = [Env.development];
 }
