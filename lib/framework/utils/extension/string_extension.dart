@@ -1,7 +1,7 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/foundation.dart';
-import 'package:chassis_timeline_viewer/framework/utils/session.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_enums.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
 
@@ -26,21 +26,21 @@ extension StringExtension on String {
     return replaceAll(RegExp(r'[\n\r]+'), '');
   }
 
-  String get encrypt {
-    if (Session.aesIv.isNotEmpty && Session.aesKey.isNotEmpty) {
-      //TODO : REPLACE WITH AES WHEN DONE
-      return endPointEncrypt;
-    }
-    return endPointEncrypt;
-  }
-
-  String get decrypt {
-    if (Session.aesIv.isNotEmpty && Session.aesKey.isNotEmpty) {
-      //TODO : REPLACE WITH AES WHEN DONE
-      return endPointDecrypt;
-    }
-    return endPointDecrypt;
-  }
+  // String get encrypt {
+  //   if (Session.aesIv.isNotEmpty && Session.aesKey.isNotEmpty) {
+  //     //TODO : REPLACE WITH AES WHEN DONE
+  //     return endPointEncrypt;
+  //   }
+  //   return endPointEncrypt;
+  // }
+  //
+  // String get decrypt {
+  //   if (Session.aesIv.isNotEmpty && Session.aesKey.isNotEmpty) {
+  //     //TODO : REPLACE WITH AES WHEN DONE
+  //     return endPointDecrypt;
+  //   }
+  //   return endPointDecrypt;
+  // }
 
   String get endPointEncrypt {
     return this;
@@ -74,19 +74,19 @@ extension StringExtension on String {
 
   String get localized => this.tr();
 
-  String get currencyForm => NumberFormat.currency(locale: 'en_US', name: Session.appCurrency).format(double.tryParse(this) ?? 0);
+  // String get currencyForm => NumberFormat.currency(locale: 'en_US', name: Session.appCurrency).format(double.tryParse(this) ?? 0);
 
-  String get currencyFormShort {
-    final value = double.tryParse(this) ?? 0.0;
-
-    if (value >= 1000000) {
-      return '${NumberFormat.currency(locale: 'en_US', name: Session.appCurrency, decimalDigits: 1).format(value / 1000000)}M';
-    } else if (value >= 1000) {
-      return '${NumberFormat.currency(locale: 'en_US', name: Session.appCurrency, decimalDigits: 1).format(value / 1000)}K';
-    } else {
-      return NumberFormat.currency(locale: 'en_US', name: Session.appCurrency, decimalDigits: 2).format(value);
-    }
-  }
+  // String get currencyFormShort {
+  //   final value = double.tryParse(this) ?? 0.0;
+  //
+  //   if (value >= 1000000) {
+  //     return '${NumberFormat.currency(locale: 'en_US', name: Session.appCurrency, decimalDigits: 1).format(value / 1000000)}M';
+  //   } else if (value >= 1000) {
+  //     return '${NumberFormat.currency(locale: 'en_US', name: Session.appCurrency, decimalDigits: 1).format(value / 1000)}K';
+  //   } else {
+  //     return NumberFormat.currency(locale: 'en_US', name: Session.appCurrency, decimalDigits: 2).format(value);
+  //   }
+  // }
 
   ///Date Format
   String getCustomDateTimeFormat(String inputFormat, String outputFormat, {bool isCheckPresent = false}) {
