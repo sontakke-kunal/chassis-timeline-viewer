@@ -32,7 +32,6 @@ import 'package:chassis_timeline_viewer/framework/repository/map/model/way_point
 import 'package:chassis_timeline_viewer/ui/routing/delegate.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
 import 'package:chassis_timeline_viewer/ui/utils/widgets/common_toast_widget.dart';
-import 'package:clipboard/clipboard.dart';
 import 'package:collection/collection.dart';
 import 'package:path/path.dart' as p;
 import 'package:archive/archive.dart';
@@ -733,7 +732,7 @@ class CanvasMapController extends ChangeNotifier {
     connectedRobotList.clear();
     newConnectedRobotList.clear();
     // SocketController.instance.onRobotList = null;
-    // SocketController.instance.onContinuosDataReceived = null;
+    onContinuosDataReceived = null;
     // SocketController.instance.onRobotPositionReceived = null;
     // SocketController.instance.onFileTransferStarted = null;
     // SocketController.instance.onFileTransferProgress = null;
@@ -852,28 +851,28 @@ class CanvasMapController extends ChangeNotifier {
     //     recenterOnPose(mapsUuid, pose);
     //   }
     // };
-    // SocketController.instance.onContinuosDataReceived = (robotId, mapName, path, threeDData, laserData, simEvent, navModeEvent, sessionData, versionData, sensorData, systemData, speedData, deviceState, networkEvent, batteryData, adsDataRes) {
-    //   this.batteryData[robotId] = batteryData;
-    //   if (networkEvent != null) {
-    //     this.networkEvent[robotId] = networkEvent;
-    //   }
-    //   if (robotId == selectedRobotUuid) {
-    //     globalPath = path;
-    //     this.threeDData = threeDData ?? [];
-    //     this.laserData = laserData ?? [];
-    //     this.sessionData = sessionData;
-    //     this.versionData = versionData;
-    //     this.sensorData = sensorData;
-    //     this.simEvent = simEvent;
-    //     this.navModeEvent = navModeEvent;
-    //     this.adsDataRes = adsDataRes;
-    //     this.systemData = systemData;
-    //     this.speedData = speedData;
-    //     this.deviceState = deviceState;
-    //   }
-    //   refreshContinousData(mapsUuid, isNotify: true);
-    //   notifyListeners();
-    // };
+    onContinuosDataReceived = (robotId, mapName, path, threeDData, laserData, simEvent, navModeEvent, sessionData, versionData, sensorData, systemData, speedData, deviceState, networkEvent, batteryData, adsDataRes) {
+      this.batteryData[robotId] = batteryData;
+      if (networkEvent != null) {
+        this.networkEvent[robotId] = networkEvent;
+      }
+      if (robotId == selectedRobotUuid) {
+        globalPath = path;
+        this.threeDData = threeDData ?? [];
+        this.laserData = laserData ?? [];
+        this.sessionData = sessionData;
+        this.versionData = versionData;
+        this.sensorData = sensorData;
+        this.simEvent = simEvent;
+        this.navModeEvent = navModeEvent;
+        this.adsDataRes = adsDataRes;
+        this.systemData = systemData;
+        this.speedData = speedData;
+        this.deviceState = deviceState;
+      }
+      refreshContinousData(mapsUuid, isNotify: true);
+      notifyListeners();
+    };
     // // demoSocketData();
   }
 
@@ -897,6 +896,7 @@ class CanvasMapController extends ChangeNotifier {
     });
     return route;
   }
+  OnContinuosDataReceived? onContinuosDataReceived;
 
   ///Chip Data
   List<PointType> pointTypeList = [PointType.PRODUCTION, PointType.CHARGE, PointType.DELIVERY, PointType.ROUTE];
@@ -1619,7 +1619,7 @@ class CanvasMapController extends ChangeNotifier {
           refreshPositionPainter(mapsUuid, robot: deviceList[mapsUuid]!.firstWhere((el) => el.deviceDetails?.firstOrNull?.uuid == robotId), isNotify: true);
         } catch (_) {}
       }
-      // SocketController.instance.onContinuosDataReceived?.call(robotId, mapsUuid, <List<double>>[], <List<double>>[], <List<double>>[], null, null, null, null, null, null, null, null, null, null, null);
+      onContinuosDataReceived?.call(robotId, mapsUuid, <List<double>>[], <List<double>>[], <List<double>>[], null, null, null, null, null, null, null, null, null, null, null);
       return;
     }
     double? robotX;
@@ -1737,11 +1737,11 @@ class CanvasMapController extends ChangeNotifier {
     }
 
     ///Device State
-    // DeviceStateEvent? deviceState;
-    // var deviceStatsRes = response['ds'];
-    // if (deviceStatsRes != null) {
-    //   deviceState = DeviceStateEvent.fromTimelineJson(deviceStatsRes);
-    // }
+    DeviceStateEvent? deviceState;
+    var deviceStatsRes = response['ds'];
+    if (deviceStatsRes != null) {
+      deviceState = DeviceStateEvent.fromTimelineJson(deviceStatsRes);
+    }
 
     ///Speed Data
     SpeedData? speedData;
@@ -1753,24 +1753,24 @@ class CanvasMapController extends ChangeNotifier {
     ///Ads Data
     Map<String, dynamic>? adsDataRes = response['ad'];
 
-    // SocketController.instance.onContinuosDataReceived?.call(
-    //   robotId,
-    //   mapsUuid,
-    //   globalPath,
-    //   threeDData,
-    //   laserData,
-    //   simEvent,
-    //   navModeEvent,
-    //   sessionData,
-    //   versionData,
-    //   sensorData,
-    //   systemData,
-    //   speedData,
-    //   deviceState,
-    //   networkEvent,
-    //   batteryData,
-    //   adsDataRes,
-    // );
+    onContinuosDataReceived?.call(
+      robotId,
+      mapsUuid,
+      globalPath,
+      threeDData,
+      laserData,
+      simEvent,
+      navModeEvent,
+      sessionData,
+      versionData,
+      sensorData,
+      systemData,
+      speedData,
+      deviceState,
+      networkEvent,
+      batteryData,
+      adsDataRes,
+    );
   }
 
   final List<int> bookmarks = [];
@@ -1863,8 +1863,24 @@ class CanvasMapController extends ChangeNotifier {
       this.virtualWall[mapUuid]=virtualWallResponseModel.waypoints;
       this.mapsUuid=mapUuid;
       this.waypointsList[mapUuid]=wayPointData.waypoints??[];
-      Map<String,List<List<double>>>? routes=metaData["routes"];
-      this.naviRoutes= {"routes":routes??{}};//TODO
+      print("Tyype: ${metaData["routes"].runtimeType}");
+      print(metaData["routes"]);
+      final routeRawRoutes = metaData["routes"] as Map<String, dynamic>?;
+
+      Map<String, List<List<double>>>? routes = routeRawRoutes?.map(
+            (key, value) => MapEntry(
+          key,
+          (value as List)
+              .map<List<double>>(
+                (inner) => (inner as List)
+                .map<double>((e) => (e as num).toDouble())
+                .toList(),
+          )
+              .toList(),
+        ),
+      );
+      print(routes);
+      this.naviRoutes= {mapUuid:routes??{}};//TODO
 
       this.crtImg=mapImgData;
 
@@ -1903,6 +1919,25 @@ class ZipEntryData {
 
   ZipEntryData(this.name, this.data);
 }
+typedef OnContinuosDataReceived =
+void Function(
+    String robotId,
+    String mapName,
+    List<List<double>>? path,
+    List<List<double>>? threeDData,
+    List<List<double>>? laserData,
+    SimEvent? simEvent,
+    NavModeEvent? navModeEvent,
+    SessionData? sessionData,
+    VersionData? versionData,
+    SensorData? sensorData,
+    SystemData? systemData,
+    SpeedData? speedData,
+    DeviceStateEvent? deviceState,
+    NetworkEvent? networkEvent,
+    Map<String, dynamic>? batteryData,
+    Map<String, dynamic>? adsDataRes,
+    );
 
 
 const String relocateStr = 'Relocate';
