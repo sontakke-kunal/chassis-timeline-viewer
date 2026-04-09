@@ -22,6 +22,7 @@ import 'package:chassis_timeline_viewer/framework/utils/helpers/laser_path_polis
 import 'package:chassis_timeline_viewer/ui/routing/navigation_stack_item.dart';
 import 'package:chassis_timeline_viewer/ui/routing/stack.dart';
 import 'package:chassis_timeline_viewer/ui/splash/web/helper/password_dialog.dart';
+import 'package:chassis_timeline_viewer/ui/splash/web/helper/unzipping_loading_dialog.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_constants.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_enums.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/assets.gen.dart';
@@ -1898,21 +1899,11 @@ class CanvasMapController extends ChangeNotifier {
 
     try {
       if (!await file.exists()) {
-        if(context!=null){
-          // showSuccessFailureDialogue(
-          //   context: context,
-          //   message: 'File not found',
-          // );
-          showErrorToast(msg: 'File not found');
-        }
+        showErrorToast(msg: 'File not found');
         return null;
       }
       if(context!=null) {
-        showLoadingDialog(
-        context,
-        title: "Extracting File",
-        description: "Please wait while we unzip the file...",
-      );
+        UnzipLoadingDialog.show();
       }
 
       final Directory extractDirectory = Directory(
@@ -1948,6 +1939,9 @@ class CanvasMapController extends ChangeNotifier {
 
         if (type == 'progress') {
           final progress = response['progress'];
+          if(progress is double){
+            UnzipLoadingDialog.updateProgress(progress);
+          }
           print("Progress: ${progress.toStringAsFixed(2)}%");
         }
 
@@ -1957,44 +1951,24 @@ class CanvasMapController extends ChangeNotifier {
         }
 
         if (type == 'error') {
-          //Navigator.pop(context); // close dialog
+
 
           if (response['e'] != null &&
               response['e'].toString().contains('password')) {
-            if(context!=null) {
-            //   showSuccessFailureDialogue(
-            //   context: context,
-            //   message: 'Please enter correct password',
-            // );
-              Navigator.maybePop(context);
+              UnzipLoadingDialog.close();
               showErrorToast(msg: 'Please enter correct password');
-            }
           } else {
-            if(context!=null) {
-              showErrorToast(msg: 'Failed to unzip file');
-            //   showSuccessFailureDialogue(
-            //   context: context,
-            //   message: 'Failed to unzip file',
-            // );
-            }
+            UnzipLoadingDialog.close();
+            showErrorToast(msg: 'Failed to unzip file');
           }
 
           return null;
         }
       }
-
-      if(context!=null) {
-        Navigator.pop(context);
-      }
+      UnzipLoadingDialog.close();
 
       if (!unzipSuccess) {
-        if(context!=null) {
-          showErrorToast(msg: 'Unzip not completed');
-        //   showSuccessFailureDialogue(
-        //   context: context,
-        //   message: 'Unzip not completed',
-        // );
-        }
+        showErrorToast(msg: 'Unzip not completed');
         return null;
       }
       final List<File> files = await extractDirectory
@@ -2004,124 +1978,20 @@ class CanvasMapController extends ChangeNotifier {
           .toList();
 
       if (files.isEmpty) {
-        if(context!=null) {
-        //   showSuccessFailureDialogue(
-        //   context: context,
-        //   message: 'No files found after extraction',
-        // );
-          showErrorToast(msg: 'No files found after extraction');
-        }
+        showErrorToast(msg: 'No files found after extraction');
         return null;
       }
 
       return files;
     } catch (e) {
-    if(context!=null){
-      Navigator.maybePop(context);
+      UnzipLoadingDialog.close();
       showErrorToast(msg: 'Something went wrong');
-      // showSuccessFailureDialogue(
-      //   context: context,
-      //   message: 'Something went wrong',
-      // );
-    }
-
       print("Exception: $e");
       return null;
     } finally {
       receivePort.close();
     }
   }
-
-  // Future<List<File>?> unzipUsingFileUtils({
-  //   required File file,
-  //   required String password,
-  //   required String tempDirPath,
-  // }) async {
-  //   final receivePort = ReceivePort();
-  //
-  //   try {
-  //     final extractDirectory = Directory(
-  //       p.join(
-  //         tempDirPath,
-  //         'unzipped_${p.basenameWithoutExtension(file.path)}',
-  //       ),
-  //     );
-  //
-  //     if (await extractDirectory.exists()) {
-  //       await extractDirectory.delete(recursive: true);
-  //     }
-  //     await extractDirectory.create(recursive: true);
-  //
-  //     // ✅ Start unzip
-  //     unawaited(
-  //       FileUtils.instance.unzipFile(
-  //         IsolateUnzipModel(
-  //           file.path,
-  //           extractDirectory.path,
-  //           receivePort.sendPort,
-  //           password: password,
-  //         ),
-  //       ),
-  //     );
-  //
-  //     bool success = false;
-  //
-  //     await for (final event in receivePort) {
-  //       final response = jsonDecode(event.toString());
-  //       final type = response['type'];
-  //
-  //       if (type == 'progress') {
-  //         print("Progress: ${response['progress']}");
-  //       }
-  //
-  //       if (type == 'success') {
-  //         success = true;
-  //         break;
-  //       }
-  //
-  //       if (type == 'error') {
-  //         print("❌ Error: ${response['e']}");
-  //         return null;
-  //       }
-  //     }
-  //
-  //     if (!success) return null;
-  //
-  //     // ✅ DEBUG (optional)
-  //     await for (final e in extractDirectory.list(recursive: true)) {
-  //       print("FOUND: ${e.path}");
-  //     }
-  //
-  //     // ✅ Collect valid files (cross-platform safe)
-  //     final List<File> files = [];
-  //
-  //     await for (final entity in extractDirectory.list(recursive: true)) {
-  //       if (entity is! File) continue;
-  //
-  //       final path = entity.path;
-  //
-  //       // ❌ Ignore junk files
-  //       if (path.contains('__MACOSX')) continue;
-  //       if (path.endsWith('.DS_Store')) continue;
-  //       if (path.endsWith('Thumbs.db')) continue;
-  //       if (p.basename(path).startsWith('.')) continue;
-  //
-  //       final size = await entity.length();
-  //       if (size == 0) continue;
-  //
-  //       files.add(entity);
-  //     }
-  //
-  //     print("✅ Extracted files count: ${files.length}");
-  //
-  //     return files;
-  //   } catch (e) {
-  //     print("❌ Exception: $e");
-  //     return null;
-  //   } finally {
-  //     receivePort.close();
-  //   }
-  // }
 
   Future<void> readZipFile() async {
     await loadPointTypeImages();
