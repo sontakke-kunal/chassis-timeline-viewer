@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'package:chassis_timeline_viewer/framework/controller/canvas_map/canvas_painter_controller.dart';
@@ -16,12 +17,16 @@ import 'package:chassis_timeline_viewer/framework/repository/map/model/way_point
 import 'package:chassis_timeline_viewer/framework/utils/extension/context_extension.dart';
 import 'package:chassis_timeline_viewer/framework/utils/extension/extension.dart';
 import 'package:chassis_timeline_viewer/framework/utils/extension/graph_extension.dart';
+import 'package:chassis_timeline_viewer/framework/utils/helpers/file_utils.dart';
+import 'package:chassis_timeline_viewer/framework/utils/helpers/laser_path_polisher.dart';
 import 'package:chassis_timeline_viewer/ui/routing/navigation_stack_item.dart';
 import 'package:chassis_timeline_viewer/ui/routing/stack.dart';
+import 'package:chassis_timeline_viewer/ui/splash/web/helper/password_dialog.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_constants.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_enums.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/assets.gen.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
+import 'package:chassis_timeline_viewer/ui/utils/widgets/common_dialogs.dart';
 import 'package:chassis_timeline_viewer/ui/utils/widgets/common_text.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,6 +46,7 @@ import 'package:collection/collection.dart';
 import 'package:path/path.dart' as p;
 import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:path_provider/path_provider.dart';
 
 final canvasMapController = ChangeNotifierProvider((ref) => getIt<CanvasMapController>());
 
@@ -1817,7 +1823,7 @@ class CanvasMapController extends ChangeNotifier {
     FilePickerResult? result = await FilePicker.pickFiles(
       allowMultiple: false,
       type: FileType.custom,
-      allowedExtensions: ['zip'],
+      allowedExtensions: ['timeLine'],
     );
     String? filePath=result?.files.firstOrNull?.path;
     if(filePath==null) return null;
@@ -1857,44 +1863,314 @@ class CanvasMapController extends ChangeNotifier {
     routeImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgRoutePoint.path);
   }
 
-  Future<void> readZipFile() async {
-    await loadPointTypeImages();
-    File? file=await _pickZipFile;
-    if(file==null) return;
-    List<ZipEntryData>? list= await _unZipInMemory(file);
-    if(list==null || list.isEmpty){
-      //showErrorToast(msg:"File not picked");
-      return ;
+  Future<Directory> get _tempDir async {
+    try{
+      if(Platform.isAndroid){
+        return getTemporaryDirectory();
+      }else if(Platform.isWindows || Platform.isMacOS)
+        return Directory.systemTemp;
+    }catch(e){
+      return Directory.systemTemp;
     }
-    int jsonFileCnt=0;
-    for(ZipEntryData file in list){
-      String ext=p.extension(file.name);
-      if(ext.contains("json")){
-        jsonFileCnt++;
+    return Directory.systemTemp;
+  }
+
+  Future<File> _createTempZipFile({
+    required File originalFile,
+    required String dirPath,
+  }) async {
+    final baseName = p.basenameWithoutExtension(originalFile.path);
+    final zipPath = p.join(dirPath, '$baseName.zip');
+
+    final file = File(zipPath);
+
+    final bytes = await originalFile.readAsBytes();
+    return await file.writeAsBytes(bytes);
+  }
+
+  Future<List<File>?> _unzipFile({
+    required File file,
+    required String password,
+    required String tempDirPath,
+  }) async {
+    final ReceivePort receivePort = ReceivePort();
+    final BuildContext? context=globalNavigatorKey.currentContext;
+
+    try {
+      if (!await file.exists()) {
+        if(context!=null){
+          // showSuccessFailureDialogue(
+          //   context: context,
+          //   message: 'File not found',
+          // );
+          showErrorToast(msg: 'File not found');
+        }
+        return null;
       }
-    }
-    if(jsonFileCnt!=2){
-      showErrorToast(msg: "Valid json files not found");
-      return;
+      if(context!=null) {
+        showLoadingDialog(
+        context,
+        title: "Extracting File",
+        description: "Please wait while we unzip the file...",
+      );
+      }
+
+      final Directory extractDirectory = Directory(
+        p.join(
+          tempDirPath,
+          'unzipped_${p.basenameWithoutExtension(file.path)}',
+        ),
+      );
+
+      if (await extractDirectory.exists()) {
+        await extractDirectory.delete(recursive: true);
+      }
+      await extractDirectory.create(recursive: true);
+
+      unawaited(
+        FileUtils.instance.unzipFile(
+          IsolateUnzipModel(
+            file.path,
+            extractDirectory.path,
+            receivePort.sendPort,
+            password: password,
+          ),
+        ),
+      );
+
+      bool unzipSuccess = false;
+
+      await for (final event in receivePort) {
+        final Map<String, dynamic> response =
+        jsonDecode(event.toString());
+
+        final String type = (response['type'] ?? '').toString();
+
+        if (type == 'progress') {
+          final progress = response['progress'];
+          print("Progress: ${progress.toStringAsFixed(2)}%");
+        }
+
+        if (type == 'success') {
+          unzipSuccess = true;
+          break;
+        }
+
+        if (type == 'error') {
+          //Navigator.pop(context); // close dialog
+
+          if (response['e'] != null &&
+              response['e'].toString().contains('password')) {
+            if(context!=null) {
+            //   showSuccessFailureDialogue(
+            //   context: context,
+            //   message: 'Please enter correct password',
+            // );
+              Navigator.maybePop(context);
+              showErrorToast(msg: 'Please enter correct password');
+            }
+          } else {
+            if(context!=null) {
+              showErrorToast(msg: 'Failed to unzip file');
+            //   showSuccessFailureDialogue(
+            //   context: context,
+            //   message: 'Failed to unzip file',
+            // );
+            }
+          }
+
+          return null;
+        }
+      }
+
+      if(context!=null) {
+        Navigator.pop(context);
+      }
+
+      if (!unzipSuccess) {
+        if(context!=null) {
+          showErrorToast(msg: 'Unzip not completed');
+        //   showSuccessFailureDialogue(
+        //   context: context,
+        //   message: 'Unzip not completed',
+        // );
+        }
+        return null;
+      }
+      final List<File> files = await extractDirectory
+          .list(recursive: true, followLinks: false)
+          .where((e) => e is File && !e.path.contains('__MACOSX'))
+          .cast<File>()
+          .toList();
+
+      if (files.isEmpty) {
+        if(context!=null) {
+        //   showSuccessFailureDialogue(
+        //   context: context,
+        //   message: 'No files found after extraction',
+        // );
+          showErrorToast(msg: 'No files found after extraction');
+        }
+        return null;
+      }
+
+      return files;
+    } catch (e) {
+    if(context!=null){
+      Navigator.maybePop(context);
+      showErrorToast(msg: 'Something went wrong');
+      // showSuccessFailureDialogue(
+      //   context: context,
+      //   message: 'Something went wrong',
+      // );
     }
 
-    final ZipEntryData? metaDataFile=list.firstWhereOrNull((obj)=>obj.name.endsWith("_metadata.json"));
-    final ZipEntryData? compressedFile=list.firstWhereOrNull((obj)=>obj.name.endsWith("_compressed.json"));
+      print("Exception: $e");
+      return null;
+    } finally {
+      receivePort.close();
+    }
+  }
+
+  // Future<List<File>?> unzipUsingFileUtils({
+  //   required File file,
+  //   required String password,
+  //   required String tempDirPath,
+  // }) async {
+  //   final receivePort = ReceivePort();
+  //
+  //   try {
+  //     final extractDirectory = Directory(
+  //       p.join(
+  //         tempDirPath,
+  //         'unzipped_${p.basenameWithoutExtension(file.path)}',
+  //       ),
+  //     );
+  //
+  //     if (await extractDirectory.exists()) {
+  //       await extractDirectory.delete(recursive: true);
+  //     }
+  //     await extractDirectory.create(recursive: true);
+  //
+  //     // ✅ Start unzip
+  //     unawaited(
+  //       FileUtils.instance.unzipFile(
+  //         IsolateUnzipModel(
+  //           file.path,
+  //           extractDirectory.path,
+  //           receivePort.sendPort,
+  //           password: password,
+  //         ),
+  //       ),
+  //     );
+  //
+  //     bool success = false;
+  //
+  //     await for (final event in receivePort) {
+  //       final response = jsonDecode(event.toString());
+  //       final type = response['type'];
+  //
+  //       if (type == 'progress') {
+  //         print("Progress: ${response['progress']}");
+  //       }
+  //
+  //       if (type == 'success') {
+  //         success = true;
+  //         break;
+  //       }
+  //
+  //       if (type == 'error') {
+  //         print("❌ Error: ${response['e']}");
+  //         return null;
+  //       }
+  //     }
+  //
+  //     if (!success) return null;
+  //
+  //     // ✅ DEBUG (optional)
+  //     await for (final e in extractDirectory.list(recursive: true)) {
+  //       print("FOUND: ${e.path}");
+  //     }
+  //
+  //     // ✅ Collect valid files (cross-platform safe)
+  //     final List<File> files = [];
+  //
+  //     await for (final entity in extractDirectory.list(recursive: true)) {
+  //       if (entity is! File) continue;
+  //
+  //       final path = entity.path;
+  //
+  //       // ❌ Ignore junk files
+  //       if (path.contains('__MACOSX')) continue;
+  //       if (path.endsWith('.DS_Store')) continue;
+  //       if (path.endsWith('Thumbs.db')) continue;
+  //       if (p.basename(path).startsWith('.')) continue;
+  //
+  //       final size = await entity.length();
+  //       if (size == 0) continue;
+  //
+  //       files.add(entity);
+  //     }
+  //
+  //     print("✅ Extracted files count: ${files.length}");
+  //
+  //     return files;
+  //   } catch (e) {
+  //     print("❌ Exception: $e");
+  //     return null;
+  //   } finally {
+  //     receivePort.close();
+  //   }
+  // }
+
+  Future<void> readZipFile() async {
+    await loadPointTypeImages();
+    final String tempDir = (await _tempDir).path;
+    File? file=await _pickZipFile;
+    if(file==null) return;
+    try{
+      file= await _createTempZipFile(originalFile:file,dirPath: tempDir);
+    }catch(e){
+      file=null;
+      showErrorToast(msg: "File creation failed");
+    }
+    if(file==null) return;
+    String? pass=await showPasswordDialog();
+    if(pass==null) {
+      showErrorToast(msg: "Password not done");
+      return;
+    }
+    List<File>? list= await _unzipFile(file: file, password: pass.trim(), tempDirPath: tempDir);//use here
+    if(list==null || list.isEmpty){
+      showErrorToast(msg:"File unzipping failed");
+      return ;
+    }
+    int txtFileCnt=0;
+    for(File file in list){
+      String ext=p.extension(file.path);
+      if(ext.contains("txt")){
+        txtFileCnt++;
+      }
+    }
+    if(txtFileCnt!=2){
+      showErrorToast(msg: "Valid txt files not found");
+      return;
+    }
+    final File? metaDataFile=list.firstWhereOrNull((obj)=>obj.path.endsWith("_metadata.txt"));
+    final File? compressedFile=list.firstWhereOrNull((obj)=>obj.path.endsWith("_compressed.txt"));
     if(metaDataFile==null || compressedFile==null){
       showErrorToast(msg: "Json file name invlaid");
       return;
     }
 
     try {
-       String? timeLineData =await _parseCompressedJson(compressedFile.data);
-       timeLineData = "[$timeLineData]";
+      String? timeLineData =LaserPathPolisher.instance.decompressString(await compressedFile.readAsString());
+      timeLineData = "[$timeLineData]";
       this.timeLineData=timeLineData;
-
-      final Map<String, dynamic> metaData = jsonDecode(utf8.decode(metaDataFile.data));
+      final Map<String, dynamic> metaData = jsonDecode(LaserPathPolisher.instance.decompressString(await metaDataFile.readAsString()));
       String? mapUuid=metaData["mapsUuid"];
       String? deviceUuid=metaData["deviceUuid"];
       if(mapUuid==null || deviceUuid==null) return;
-      //String? mapUuid=metaData["mapsUuid"];
       WayPointData wayPointData=WayPointData.fromJson(metaData);
       VirtualWallResponseModel virtualWallResponseModel=VirtualWallResponseModel.fromJson(metaData);
       //DestinationData destinationData=DestinationData.fromJson(metaData["destination"]);
@@ -1981,7 +2257,7 @@ class CanvasMapController extends ChangeNotifier {
   void showErrorToast({required String msg}){
     final BuildContext? context=globalNavigatorKey.currentContext;
     if(context==null) return;
-    showToast(context: context,message: msg,isSuccess: false);
+    showToast(context: context,message: msg,isSuccess: false,title: "Error Snack");
   }
 
   Future<ui.Image> loadImage({int? height, int? width, bool doChangeColor = true,required String mapImage}) async {
