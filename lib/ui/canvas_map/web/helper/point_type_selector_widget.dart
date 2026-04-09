@@ -99,7 +99,7 @@ class PointTypeSelectorWidget extends ConsumerWidget {
                       ),
                       const SizedBox(height: 1),
                       CommonText(
-                        title: '${canvasMapWatch.selectedPointTypeList[mapsUuid]?.length ?? 0} selected • ${canvasMapWatch.pointTypeList.length} total',
+                        title: '${canvasMapWatch.selectedPointTypeList.length ?? 0} selected • ${canvasMapWatch.pointTypeList.length} total',
                         style: TextStyles.regular.copyWith(
                           fontSize: 10,
                           color: AppColors.black.withValues(alpha: 0.55),
@@ -114,7 +114,7 @@ class PointTypeSelectorWidget extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(999),
                   onTap: () {
                     for (final t in canvasMapWatch.pointTypeList) {
-                      if (!(canvasMapWatch.selectedPointTypeList[mapsUuid]?.contains(t) ?? false)) {
+                      if (!(canvasMapWatch.selectedPointTypeList.contains(t) ?? false)) {
                         canvasMapWatch.addSelectedPointType(mapsUuid, t);
                       }
                     }
@@ -139,7 +139,7 @@ class PointTypeSelectorWidget extends ConsumerWidget {
                 InkWell(
                   borderRadius: BorderRadius.circular(999),
                   onTap: () {
-                    final selected = List<PointType>.from(canvasMapWatch.selectedPointTypeList[mapsUuid] ?? []);
+                    final selected = List<PointType>.from(canvasMapWatch.selectedPointTypeList ?? []);
                     for (final t in selected) {
                       canvasMapWatch.removeSelectedPointType(mapsUuid, t);
                     }
@@ -275,7 +275,7 @@ class PointTypeSelectorWidget extends ConsumerWidget {
                   // Point type rows
                   ...List.generate(canvasMapWatch.pointTypeList.length, (index) {
                     final PointType type = canvasMapWatch.pointTypeList[index];
-                    final bool isSelected = canvasMapWatch.selectedPointTypeList[mapsUuid]!.contains(type);
+                    final bool isSelected = canvasMapWatch.selectedPointTypeList.contains(type);
 
                     return Padding(
                       padding: EdgeInsets.only(bottom: context.height * 0.007),

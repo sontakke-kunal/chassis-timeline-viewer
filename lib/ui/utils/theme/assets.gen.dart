@@ -18,12 +18,24 @@ import 'package:vector_graphics/vector_graphics.dart' as _vg;
 class $AssetsAnimGen {
   const $AssetsAnimGen();
 
+  /// File path: assets/anim/anim_error_json.json
+  LottieGenImage get animErrorJson =>
+      const LottieGenImage('assets/anim/anim_error_json.json');
+
   /// File path: assets/anim/anim_loader_blue.json
   LottieGenImage get animLoaderBlue =>
       const LottieGenImage('assets/anim/anim_loader_blue.json');
 
+  /// File path: assets/anim/anim_success.json
+  LottieGenImage get animSuccess =>
+      const LottieGenImage('assets/anim/anim_success.json');
+
   /// List of all assets
-  List<LottieGenImage> get values => [animLoaderBlue];
+  List<LottieGenImage> get values => [
+    animErrorJson,
+    animLoaderBlue,
+    animSuccess,
+  ];
 }
 
 class $AssetsImagesGen {

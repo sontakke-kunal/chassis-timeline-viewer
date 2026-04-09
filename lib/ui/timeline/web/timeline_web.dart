@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:chassis_timeline_viewer/framework/controller/canvas_map/canvas_map_controller.dart';
-import 'package:chassis_timeline_viewer/framework/repository/map/model/map_variables.dart';
 import 'package:chassis_timeline_viewer/framework/utils/extension/context_extension.dart';
 import 'package:chassis_timeline_viewer/framework/utils/extension/string_extension.dart';
 import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/android_data_widget.dart';
@@ -19,18 +18,14 @@ import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/painter/virtual
 import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/painter/waypoint_painter_widget.dart';
 import 'package:chassis_timeline_viewer/ui/timeline/timeline_keybaord_handler.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_constants.dart';
-import 'package:chassis_timeline_viewer/ui/utils/theme/assets.gen.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
-import 'package:chassis_timeline_viewer/ui/utils/widgets/common_anim_loader.dart';
 import 'package:chassis_timeline_viewer/ui/utils/widgets/common_text.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-
 class TimelineWeb extends ConsumerStatefulWidget {
-
   const TimelineWeb({super.key});
 
   @override
@@ -54,7 +49,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
       final canvasMapWatch = ref.read(canvasMapController);
       canvasMapWatch.speedList = [1, 2, 4, 8, 16, 32, 64, 128];
       canvasMapWatch.speedIndex = 0;
-      canvasMapWatch.selectedRobotOnMap = canvasMapWatch.deviceList[canvasMapWatch.mapsUuid]?.where((device) => device.deviceDetails?.firstOrNull?.uuid == canvasMapWatch.robotId).firstOrNull;
+      canvasMapWatch.selectedRobotOnMap = canvasMapWatch.deviceList.where((device) => device.deviceDetails?.firstOrNull?.uuid == canvasMapWatch.robotId).firstOrNull;
       canvasMapWatch.readTimelineFile();
       canvasMapWatch.show3DData = false;
       canvasMapWatch.threeDData = [];
@@ -74,11 +69,6 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
       canvasMapWatch.batteryData = {};
       canvasMapWatch.listenToRobotPosition(canvasMapWatch.mapsUuid);
       canvasMapWatch.notifyListeners();
-      canvasMapWatch.odigoImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoNavigationIcon.path);
-      canvasMapWatch.chargingPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgMarkChargingPoint.path);
-      canvasMapWatch.productionPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoProdcutionPoint.path);
-      canvasMapWatch.deliveryPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoLocationPoint.path);
-      canvasMapWatch.routeImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgRoutePoint.path);
       _canvasCtrl = canvasMapWatch;
     });
     super.initState();
@@ -94,7 +84,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
     if (canvasMapWatch?.selectedRobotOnMap != null) {
       canvasMapWatch?.isTimelinePlaying = false;
       canvasMapWatch?.timelineTimer?.cancel();
-      canvasMapWatch?.deviceList[canvasMapWatch.mapsUuid] = canvasMapWatch.deviceList[canvasMapWatch.mapsUuid]!.map((device) => device..pose = null).toList();
+      canvasMapWatch?.deviceList = canvasMapWatch.deviceList.map((device) => device..pose = null).toList();
       canvasMapWatch?.isTimelineScreen = false;
       canvasMapWatch?.show3DData = false;
       canvasMapWatch?.threeDData = [];
@@ -109,7 +99,6 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
       canvasMapWatch?.speedData = null;
       canvasMapWatch?.showCameraView = false;
       canvasMapWatch?.selectedCamera = null;
-      // SocketController.instance.requestUserList(mapsUuid: widget.mapsUuid, destinationUuid: canvasMapWatch?.selectedRobotOnMap?.destinationUuid);
       canvasMapWatch?.refreshContinousData(canvasMapWatch.mapsUuid, isNotify: false);
       Future.delayed(Duration(milliseconds: 150), () => canvasMapWatch?.notifyListeners());
     }
@@ -167,7 +156,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
           child: InteractiveViewer(
             minScale: 0.2,
             maxScale: 50,
-            transformationController: canvasMapWatch.transformationController[canvasMapWatch.mapsUuid]!,
+            transformationController: canvasMapWatch.transformationController!,
             constrained: false,
             panAxis: PanAxis.free,
             trackpadScrollCausesScale: true,
@@ -180,18 +169,26 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
             },
             onInteractionUpdate: (scaleUpdate) {
               // Get the current transformation matrix
-              final Matrix4 currentMatrix = canvasMapWatch.transformationController[canvasMapWatch.mapsUuid]!.value;
+              final Matrix4 currentMatrix = canvasMapWatch.transformationController!.value;
               // Extract the scale factor from the transformation matrix
               final double scaleX = currentMatrix.getMaxScaleOnAxis();
-              if (canvasMapWatch.scale[canvasMapWatch.mapsUuid] != scaleX) {
-                canvasMapWatch.scale[canvasMapWatch.mapsUuid] = scaleX;
+              if (canvasMapWatch.scale != scaleX) {
+                canvasMapWatch.scale = scaleX;
                 canvasMapWatch.updateBackgroundAlphaForMap(canvasMapWatch.mapsUuid);
                 canvasMapWatch.refreshEntireCanvas(canvasMapWatch.mapsUuid);
-                canvasMapWatch.currentMapResponseModel.forEach((key, value) {
-                  canvasMapWatch.deviceList[key]?.forEach((element) {
-                    canvasMapWatch.refreshPositionPainter(key, robot: element, isNotify: true);
-                  });
+
+                canvasMapWatch.deviceList.forEach((element) {
+                  canvasMapWatch.refreshPositionPainter(canvasMapWatch.mapsUuid, robot: element, isNotify: true);
                 });
+
+                canvasMapWatch.deviceList.forEach((element) {
+                  canvasMapWatch.refreshPositionPainter(canvasMapWatch.mapsUuid, robot: element, isNotify: true);
+                });
+                // canvasMapWatch.currentMapResponseModel.forEach((key, value) {
+                //   canvasMapWatch.deviceList[key]?.forEach((element) {
+                //     canvasMapWatch.refreshPositionPainter(key, robot: element, isNotify: true);
+                //   });
+                // });
               }
             },
             boundaryMargin: EdgeInsets.symmetric(horizontal: double.infinity, vertical: double.infinity),
@@ -227,11 +224,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                     AndroidDataWidget(),
                     if (canvasMapWatch.selectedRobotOnMap != null) ...[
                       SizedBox(height: context.height * 0.01),
-                      Row(
-                        children: [
-                          RecenterHelperPill(mapsUuid: canvasMapWatch.mapsUuid),
-                        ],
-                      ),
+                      Row(children: [RecenterHelperPill(mapsUuid: canvasMapWatch.mapsUuid)]),
                       SizedBox(height: context.height * 0.01),
                       MapInformationWidget(),
                     ],
@@ -248,7 +241,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
             top: context.height * 0.015,
             child: Column(
               children: [
-                PointTypeSelectorWidget(mapsUuid:canvasMapWatch.mapsUuid),
+                PointTypeSelectorWidget(mapsUuid: canvasMapWatch.mapsUuid),
                 SizedBox(height: context.height * 0.01),
                 if (canvasMapWatch.showCameraView || !canvasMapWatch.isDeviceListVisible && !canvasMapWatch.isDeviceSettingsVisible && canvasMapWatch.systemData != null) SystemLoadWidget(),
               ],
@@ -262,7 +255,6 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
         //       return CommonAnimLoader(value: canvasMapWatch.downloadValue[canvasMapWatch.mapsUuid]);
         //     },
         //   ),
-
         Positioned(
           left: context.width * 0.05,
           right: context.width * 0.05,
@@ -324,28 +316,15 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                   decoration: BoxDecoration(
                     color: on ? AppColors.black.withValues(alpha: 0.10) : AppColors.black.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: on ? AppColors.black.withValues(alpha: 0.18) : AppColors.black.withValues(alpha: 0.10),
-                      width: 0.8,
-                    ),
+                    border: Border.all(color: on ? AppColors.black.withValues(alpha: 0.18) : AppColors.black.withValues(alpha: 0.10), width: 0.8),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (icon != null) ...[
-                        Icon(
-                          icon,
-                          size: 14,
-                          color: on ? AppColors.black.withValues(alpha: 0.85) : AppColors.black.withValues(alpha: 0.45),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
+                      if (icon != null) ...[Icon(icon, size: 14, color: on ? AppColors.black.withValues(alpha: 0.85) : AppColors.black.withValues(alpha: 0.45)), const SizedBox(width: 6)],
                       CommonText(
                         title: label,
-                        style: TextStyles.medium.copyWith(
-                          fontSize: 11,
-                          color: on ? AppColors.black.withValues(alpha: 0.85) : AppColors.black.withValues(alpha: 0.45),
-                        ),
+                        style: TextStyles.medium.copyWith(fontSize: 11, color: on ? AppColors.black.withValues(alpha: 0.85) : AppColors.black.withValues(alpha: 0.45)),
                         maxLines: 1,
                       ),
                     ],
@@ -353,13 +332,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                 );
               }
 
-              Widget iconBtn({
-                required IconData icon,
-                required VoidCallback onTap,
-                String? tooltip,
-                bool filled = false,
-                double? size,
-              }) {
+              Widget iconBtn({required IconData icon, required VoidCallback onTap, String? tooltip, bool filled = false, double? size}) {
                 final s = size ?? (context.height * 0.040);
                 final child = Container(
                   height: s,
@@ -368,27 +341,13 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                     shape: BoxShape.circle,
                     color: filled ? AppColors.clr009AF1 : AppColors.white.withValues(alpha: 0.55),
                     border: Border.all(color: AppColors.black.withValues(alpha: 0.07), width: 0.9),
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.black.withValues(alpha: 0.06),
-                        blurRadius: 18,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+                    boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.06), blurRadius: 18, offset: const Offset(0, 10))],
                   ),
                   alignment: Alignment.center,
-                  child: Icon(
-                    icon,
-                    size: context.height * 0.020,
-                    color: filled ? AppColors.white : AppColors.black.withValues(alpha: 0.80),
-                  ),
+                  child: Icon(icon, size: context.height * 0.020, color: filled ? AppColors.white : AppColors.black.withValues(alpha: 0.80)),
                 );
 
-                final tappable = InkWell(
-                  borderRadius: BorderRadius.circular(999),
-                  onTap: onTap,
-                  child: child,
-                );
+                final tappable = InkWell(borderRadius: BorderRadius.circular(999), onTap: onTap, child: child);
 
                 return tooltip == null ? tappable : CustomToolTip(message: tooltip, child: tappable);
               }
@@ -398,28 +357,12 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
               String frameStr() => '${(currentIndex + 1).clamp(1, total)} / $total';
 
               return Container(
-                padding: EdgeInsets.symmetric(
-                  horizontal: context.width * 0.012,
-                  vertical: context.height * 0.012,
-                ),
+                padding: EdgeInsets.symmetric(horizontal: context.width * 0.012, vertical: context.height * 0.012),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      AppColors.white.withValues(alpha: 0.82),
-                      AppColors.white.withValues(alpha: 0.55),
-                    ],
-                  ),
+                  gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.white.withValues(alpha: 0.82), AppColors.white.withValues(alpha: 0.55)]),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.black.withValues(alpha: 0.07), width: 0.9),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.black.withValues(alpha: 0.08),
-                      blurRadius: 22,
-                      offset: const Offset(0, 14),
-                    ),
-                  ],
+                  boxShadow: [BoxShadow(color: AppColors.black.withValues(alpha: 0.08), blurRadius: 22, offset: const Offset(0, 14))],
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -442,10 +385,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                                 const SizedBox(width: 6),
                                 CommonText(
                                   title: 'No data • ${gapSeconds}s',
-                                  style: TextStyles.bold.copyWith(
-                                    fontSize: 11,
-                                    color: AppColors.black.withValues(alpha: 0.80),
-                                  ),
+                                  style: TextStyles.bold.copyWith(fontSize: 11, color: AppColors.black.withValues(alpha: 0.80)),
                                   maxLines: 1,
                                 ),
                               ],
@@ -515,10 +455,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                           ),
                           child: CommonText(
                             title: DateFormat('HH:mm:ss').format(showTime),
-                            style: TextStyles.bold.copyWith(
-                              fontSize: 12,
-                              color: AppColors.black.withValues(alpha: 0.82),
-                            ),
+                            style: TextStyles.bold.copyWith(fontSize: 12, color: AppColors.black.withValues(alpha: 0.82)),
                             maxLines: 1,
                           ),
                         ),
@@ -532,10 +469,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                           ),
                           child: CommonText(
                             title: absStamp,
-                            style: TextStyles.bold.copyWith(
-                              fontSize: 12,
-                              color: AppColors.black.withValues(alpha: 0.82),
-                            ),
+                            style: TextStyles.bold.copyWith(fontSize: 12, color: AppColors.black.withValues(alpha: 0.82)),
                             maxLines: 1,
                           ),
                         ),
@@ -549,20 +483,14 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                           ),
                           child: CommonText(
                             title: frameStr(),
-                            style: TextStyles.medium.copyWith(
-                              fontSize: 12,
-                              color: AppColors.black.withValues(alpha: 0.70),
-                            ),
+                            style: TextStyles.medium.copyWith(fontSize: 12, color: AppColors.black.withValues(alpha: 0.70)),
                             maxLines: 1,
                           ),
                         ),
                         Spacer(),
                         CommonText(
                           title: DateFormat('HH:mm:ss').format(showEndTime),
-                          style: TextStyles.medium.copyWith(
-                            fontSize: 12,
-                            color: AppColors.black.withValues(alpha: 0.70),
-                          ),
+                          style: TextStyles.medium.copyWith(fontSize: 12, color: AppColors.black.withValues(alpha: 0.70)),
                         ),
                       ],
                     ),
@@ -602,11 +530,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                               height: 26,
                               width: double.infinity,
                               child: CustomPaint(
-                                painter: _GapTrackPainter(
-                                  total: total,
-                                  gaps: gapRanges,
-                                  horizontalInset: horizontalInset,
-                                ),
+                                painter: _GapTrackPainter(total: total, gaps: gapRanges, horizontalInset: horizontalInset),
                               ),
                             ),
 
@@ -616,11 +540,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                                 height: 26,
                                 width: double.infinity,
                                 child: CustomPaint(
-                                  painter: _BookmarkTrackPainter(
-                                    total: total,
-                                    bookmarks: canvasMapWatch.bookmarks,
-                                    horizontalInset: horizontalInset,
-                                  ),
+                                  painter: _BookmarkTrackPainter(total: total, bookmarks: canvasMapWatch.bookmarks, horizontalInset: horizontalInset),
                                 ),
                               ),
                             ),
@@ -684,23 +604,11 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                                         gradient: LinearGradient(
                                           begin: Alignment.topLeft,
                                           end: Alignment.bottomRight,
-                                          colors: [
-                                            Colors.white.withValues(alpha: 0.92),
-                                            Colors.white.withValues(alpha: 0.80),
-                                          ],
+                                          colors: [Colors.white.withValues(alpha: 0.92), Colors.white.withValues(alpha: 0.80)],
                                         ),
                                         borderRadius: BorderRadius.circular(14),
-                                        border: Border.all(
-                                          color: Colors.black.withValues(alpha: 0.12),
-                                          width: 0.9,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.18),
-                                            blurRadius: 22,
-                                            offset: const Offset(0, 12),
-                                          ),
-                                        ],
+                                        border: Border.all(color: Colors.black.withValues(alpha: 0.12), width: 0.9),
+                                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 22, offset: const Offset(0, 12))],
                                       ),
                                       child: Column(
                                         mainAxisSize: MainAxisSize.min,
@@ -714,23 +622,14 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                                                 decoration: BoxDecoration(
                                                   shape: BoxShape.circle,
                                                   color: AppColors.clr009AF1.withValues(alpha: 0.95),
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: AppColors.clr009AF1.withValues(alpha: 0.22),
-                                                      blurRadius: 10,
-                                                      offset: const Offset(0, 6),
-                                                    ),
-                                                  ],
+                                                  boxShadow: [BoxShadow(color: AppColors.clr009AF1.withValues(alpha: 0.22), blurRadius: 10, offset: const Offset(0, 6))],
                                                 ),
                                               ),
                                               const SizedBox(width: 8),
                                               Expanded(
                                                 child: CommonText(
                                                   title: DateFormat('HH:mm:ss.S').format(tipTime),
-                                                  style: TextStyles.bold.copyWith(
-                                                    fontSize: 13,
-                                                    color: Colors.black.withValues(alpha: 0.86),
-                                                  ),
+                                                  style: TextStyles.bold.copyWith(fontSize: 13, color: Colors.black.withValues(alpha: 0.86)),
                                                   maxLines: 1,
                                                   overflow: TextOverflow.ellipsis,
                                                 ),
@@ -740,10 +639,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                                           const SizedBox(height: 6),
                                           CommonText(
                                             title: DateFormat('EEE, dd MMM yyyy').format(tipTime),
-                                            style: TextStyles.medium.copyWith(
-                                              fontSize: 11,
-                                              color: Colors.black.withValues(alpha: 0.62),
-                                            ),
+                                            style: TextStyles.medium.copyWith(fontSize: 11, color: Colors.black.withValues(alpha: 0.62)),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                           ),
@@ -761,17 +657,9 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                     // --- Controls ---
                     Row(
                       children: [
-                        iconBtn(
-                          icon: Icons.keyboard_double_arrow_left_rounded,
-                          tooltip: 'Jump back',
-                          onTap: () => canvasMapWatch.seekTimeline(currentIndex - 10),
-                        ),
+                        iconBtn(icon: Icons.keyboard_double_arrow_left_rounded, tooltip: 'Jump back', onTap: () => canvasMapWatch.seekTimeline(currentIndex - 10)),
                         const SizedBox(width: 10),
-                        iconBtn(
-                          icon: Icons.chevron_left_rounded,
-                          tooltip: 'Step back',
-                          onTap: () => canvasMapWatch.seekTimeline(currentIndex - 1),
-                        ),
+                        iconBtn(icon: Icons.chevron_left_rounded, tooltip: 'Step back', onTap: () => canvasMapWatch.seekTimeline(currentIndex - 1)),
 
                         const Spacer(),
 
@@ -785,17 +673,9 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
 
                         const Spacer(),
 
-                        iconBtn(
-                          icon: Icons.chevron_right_rounded,
-                          tooltip: 'Step forward',
-                          onTap: () => canvasMapWatch.seekTimeline(currentIndex + 1),
-                        ),
+                        iconBtn(icon: Icons.chevron_right_rounded, tooltip: 'Step forward', onTap: () => canvasMapWatch.seekTimeline(currentIndex + 1)),
                         const SizedBox(width: 10),
-                        iconBtn(
-                          icon: Icons.keyboard_double_arrow_right_rounded,
-                          tooltip: 'Jump forward',
-                          onTap: () => canvasMapWatch.seekTimeline(currentIndex + 10),
-                        ),
+                        iconBtn(icon: Icons.keyboard_double_arrow_right_rounded, tooltip: 'Jump forward', onTap: () => canvasMapWatch.seekTimeline(currentIndex + 10)),
                         const SizedBox(width: 14),
 
                         CustomToolTip(
@@ -818,10 +698,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                                   const SizedBox(width: 8),
                                   CommonText(
                                     title: '${canvasMapWatch.speedList[canvasMapWatch.speedIndex]}x',
-                                    style: TextStyles.bold.copyWith(
-                                      fontSize: 12,
-                                      color: AppColors.black.withValues(alpha: 0.82),
-                                    ),
+                                    style: TextStyles.bold.copyWith(fontSize: 12, color: AppColors.black.withValues(alpha: 0.82)),
                                   ),
                                   const SizedBox(width: 6),
                                   Icon(CupertinoIcons.chevron_up_chevron_down, size: 12, color: AppColors.black.withValues(alpha: 0.45)),
@@ -877,13 +754,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                                             color: Colors.white.withValues(alpha: 0.88),
                                             borderRadius: BorderRadius.circular(16),
                                             border: Border.all(color: Colors.black.withValues(alpha: 0.10), width: 0.9),
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.18),
-                                                blurRadius: 24,
-                                                offset: const Offset(0, 14),
-                                              ),
-                                            ],
+                                            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 24, offset: const Offset(0, 14))],
                                           ),
                                           child: Column(
                                             mainAxisSize: MainAxisSize.min,
@@ -997,10 +868,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                                                       onTap: () => Navigator.pop(ctx),
                                                       child: Container(
                                                         padding: const EdgeInsets.symmetric(vertical: 10),
-                                                        decoration: BoxDecoration(
-                                                          color: AppColors.clr009AF1.withValues(alpha: 0.88),
-                                                          borderRadius: BorderRadius.circular(14),
-                                                        ),
+                                                        decoration: BoxDecoration(color: AppColors.clr009AF1.withValues(alpha: 0.88), borderRadius: BorderRadius.circular(14)),
                                                         alignment: Alignment.center,
                                                         child: CommonText(
                                                           title: 'Close',
@@ -1043,10 +911,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                         const SizedBox(width: 6),
                         CommonText(
                           title: 'Space: Play/Pause • ←/→: Step • Double Space: Speed • ★: Bookmarks',
-                          style: TextStyles.regular.copyWith(
-                            fontSize: 10,
-                            color: AppColors.black.withValues(alpha: 0.40),
-                          ),
+                          style: TextStyles.regular.copyWith(fontSize: 10, color: AppColors.black.withValues(alpha: 0.40)),
                           maxLines: 1,
                         ),
                       ],
@@ -1061,11 +926,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
     );
   }
 
-  Widget robotInfoPill({
-    required String serialNumber,
-    required String hostName,
-    required String destinationName,
-  }) {
+  Widget robotInfoPill({required String serialNumber, required String hostName, required String destinationName}) {
     final sn = serialNumber.isNotEmpty ? serialNumber : '-';
     final hn = hostName.isNotEmpty ? hostName : '-';
     final dn = destinationName.isNotEmpty ? destinationName : '-';
@@ -1078,13 +939,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
         color: Colors.black.withValues(alpha: 0.90),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 0.8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       richMessage: TextSpan(
         style: const TextStyle(fontSize: 12, color: Colors.white, height: 1.4),
@@ -1127,26 +982,16 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
         decoration: BoxDecoration(
           color: AppColors.black.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: AppColors.black.withValues(alpha: 0.18),
-            width: 0.8,
-          ),
+          border: Border.all(color: AppColors.black.withValues(alpha: 0.18), width: 0.8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.smart_toy_rounded,
-              size: 14,
-              color: AppColors.black.withValues(alpha: 0.85),
-            ),
+            Icon(Icons.smart_toy_rounded, size: 14, color: AppColors.black.withValues(alpha: 0.85)),
             const SizedBox(width: 6),
             CommonText(
               title: sn != '-' ? sn : 'Robot',
-              style: TextStyles.medium.copyWith(
-                fontSize: 11,
-                color: AppColors.black.withValues(alpha: 0.85),
-              ),
+              style: TextStyles.medium.copyWith(fontSize: 11, color: AppColors.black.withValues(alpha: 0.85)),
               maxLines: 1,
             ),
           ],
@@ -1192,13 +1037,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
         color: Colors.black.withValues(alpha: 0.90),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 0.8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 14, offset: const Offset(0, 6))],
       ),
       richMessage: TextSpan(
         style: const TextStyle(fontSize: 12, color: Colors.white, height: 1.4),
@@ -1277,26 +1116,16 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
         decoration: BoxDecoration(
           color: isOn ? AppColors.black.withValues(alpha: 0.10) : AppColors.black.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: isOn ? AppColors.black.withValues(alpha: 0.18) : AppColors.black.withValues(alpha: 0.10),
-            width: 0.8,
-          ),
+          border: Border.all(color: isOn ? AppColors.black.withValues(alpha: 0.18) : AppColors.black.withValues(alpha: 0.10), width: 0.8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.wifi_rounded,
-              size: 14,
-              color: isOn ? AppColors.black.withValues(alpha: 0.85) : AppColors.black.withValues(alpha: 0.45),
-            ),
+            Icon(Icons.wifi_rounded, size: 14, color: isOn ? AppColors.black.withValues(alpha: 0.85) : AppColors.black.withValues(alpha: 0.45)),
             const SizedBox(width: 6),
             CommonText(
               title: ip,
-              style: TextStyles.regular.copyWith(
-                fontSize: 10,
-                color: isOn ? AppColors.black.withValues(alpha: 0.60) : AppColors.black.withValues(alpha: 0.38),
-              ),
+              style: TextStyles.regular.copyWith(fontSize: 10, color: isOn ? AppColors.black.withValues(alpha: 0.60) : AppColors.black.withValues(alpha: 0.38)),
               maxLines: 1,
             ),
           ],
@@ -1312,11 +1141,7 @@ class _GapTrackPainter extends CustomPainter {
   final List<_GapRange> gaps;
   final double horizontalInset;
 
-  _GapTrackPainter({
-    required this.total,
-    required this.gaps,
-    required this.horizontalInset,
-  });
+  _GapTrackPainter({required this.total, required this.gaps, required this.horizontalInset});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1327,10 +1152,7 @@ class _GapTrackPainter extends CustomPainter {
     final double usableWidth = max(0.0, size.width - (horizontalInset * 2));
 
     // Base track aligned with Slider's actual track rect
-    final baseR = RRect.fromRectAndRadius(
-      Rect.fromLTWH(horizontalInset, y, usableWidth, trackHeight),
-      const Radius.circular(999),
-    );
+    final baseR = RRect.fromRectAndRadius(Rect.fromLTWH(horizontalInset, y, usableWidth, trackHeight), const Radius.circular(999));
     final basePaint = Paint()..color = Colors.black.withValues(alpha: 0.08);
     canvas.drawRRect(baseR, basePaint);
 
@@ -1343,10 +1165,7 @@ class _GapTrackPainter extends CustomPainter {
       final double sx = horizontalInset + ((g.start / (total - 1)) * usableWidth);
       final double ex = horizontalInset + ((g.end / (total - 1)) * usableWidth);
       final double w = max(2.0, ex - sx);
-      final r = RRect.fromRectAndRadius(
-        Rect.fromLTWH(sx, y, w, trackHeight),
-        const Radius.circular(999),
-      );
+      final r = RRect.fromRectAndRadius(Rect.fromLTWH(sx, y, w, trackHeight), const Radius.circular(999));
       canvas.drawRRect(r, gapPaint);
     }
   }
@@ -1362,11 +1181,7 @@ class _BookmarkTrackPainter extends CustomPainter {
   final List<int> bookmarks;
   final double horizontalInset;
 
-  _BookmarkTrackPainter({
-    required this.total,
-    required this.bookmarks,
-    required this.horizontalInset,
-  });
+  _BookmarkTrackPainter({required this.total, required this.bookmarks, required this.horizontalInset});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1406,10 +1221,7 @@ class _BookmarkTrackPainter extends CustomPainter {
       canvas.drawCircle(Offset(x, y), 2.3, dotPaint);
 
       // Small vertical tick to visually sit on track
-      final tick = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(x, y), width: 2.2, height: trackHeight + 8),
-        const Radius.circular(999),
-      );
+      final tick = RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(x, y), width: 2.2, height: trackHeight + 8), const Radius.circular(999));
       final tickPaint = Paint()..color = const Color(0xFF009AF1).withValues(alpha: 0.22);
       canvas.drawRRect(tick, tickPaint);
     }
@@ -1470,12 +1282,7 @@ Future<void> _openSpeedMenu(BuildContext context, CanvasMapController canvasMapW
       borderRadius: BorderRadius.circular(14),
       side: BorderSide(color: Colors.black.withValues(alpha: 0.10), width: 0.9),
     ),
-    position: RelativeRect.fromLTRB(
-      pos.dx,
-      pos.dy - 8,
-      overlay.size.width - (pos.dx + box.size.width),
-      overlay.size.height - pos.dy,
-    ),
+    position: RelativeRect.fromLTRB(pos.dx, pos.dy - 8, overlay.size.width - (pos.dx + box.size.width), overlay.size.height - pos.dy),
     items: List.generate(canvasMapWatch.speedList.length, (i) {
       final v = canvasMapWatch.speedList[i];
       final isSel = i == canvasMapWatch.speedIndex;
@@ -1490,17 +1297,10 @@ Future<void> _openSpeedMenu(BuildContext context, CanvasMapController canvasMapW
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: isSel ? const Color(0xFF009AF1).withValues(alpha: 0.14) : Colors.black.withValues(alpha: 0.06),
-                border: Border.all(
-                  color: isSel ? const Color(0xFF009AF1).withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.10),
-                  width: 0.9,
-                ),
+                border: Border.all(color: isSel ? const Color(0xFF009AF1).withValues(alpha: 0.25) : Colors.black.withValues(alpha: 0.10), width: 0.9),
               ),
               alignment: Alignment.center,
-              child: Icon(
-                isSel ? Icons.check_rounded : Icons.speed_rounded,
-                size: 16,
-                color: isSel ? const Color(0xFF009AF1) : Colors.black.withValues(alpha: 0.65),
-              ),
+              child: Icon(isSel ? Icons.check_rounded : Icons.speed_rounded, size: 16, color: isSel ? const Color(0xFF009AF1) : Colors.black.withValues(alpha: 0.65)),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -1516,11 +1316,7 @@ Future<void> _openSpeedMenu(BuildContext context, CanvasMapController canvasMapW
             if (isSel)
               Text(
                 'Current',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF009AF1).withValues(alpha: 0.95),
-                  fontSize: 11,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w600, color: const Color(0xFF009AF1).withValues(alpha: 0.95), fontSize: 11),
               ),
           ],
         ),

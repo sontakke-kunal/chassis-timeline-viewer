@@ -9,32 +9,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final mapPainterController = ChangeNotifierProvider((ref) => MapPainterController());
 
 class MapPainterController extends ChangeNotifier {
-
+  /// Map Painter
   MapPainterCanvas? mapPainterCanvas;
 
-  ///Refresh Canvas Painter
   void refreshMapPainter(MapVariables mapVariables, {bool isNotify = true}) {
-
-    final  canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
-
+    final canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
     if (canvasMapWatch?.image != null) {
-      mapPainterCanvas = MapPainterCanvas(image: canvasMapWatch!.image!, scale: canvasMapWatch.scale[mapVariables.mapsUuid]!, mapVariables: mapVariables);
+      mapPainterCanvas = MapPainterCanvas(image: canvasMapWatch!.image!, scale: canvasMapWatch.scale!, mapVariables: mapVariables);
       if (isNotify) notifyListeners();
     }
   }
 
   /// way Points
   WaypointsPainterCanvas? waypointsPainterCanvas;
+
   void refreshWaypointsPainter(MapVariables mapVariables, {bool isNotify = true}) {
-    final  canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
-    if (canvasMapWatch?.pointTypeList.isNotEmpty??false) {
+    final canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
+    if (canvasMapWatch?.pointTypeList.isNotEmpty ?? false) {
       waypointsPainterCanvas = WaypointsPainterCanvas(
         chargingPointImage: canvasMapWatch?.chargingPointImage,
         productionPointImage: canvasMapWatch?.productionPointImage,
         deliveryPointImage: canvasMapWatch?.deliveryPointImage,
         wayPoints: canvasMapWatch!.waypointsList[mapVariables.mapsUuid]!,
-        scale: canvasMapWatch.scale[mapVariables.mapsUuid]!,
-        selectedPointType: canvasMapWatch.selectedPointTypeList[mapVariables.mapsUuid]!,
+        scale: canvasMapWatch.scale!,
+        selectedPointType: canvasMapWatch.selectedPointTypeList,
         mapVariables: mapVariables,
       );
       if (isNotify) notifyListeners();
@@ -45,12 +43,12 @@ class MapPainterController extends ChangeNotifier {
   RoutesPainterCanvas? routesPainterCanvas;
 
   void refreshRoutesPainter(MapVariables mapVariables, {bool isNotify = true}) {
-    final  canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
+    final canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
     routesPainterCanvas = RoutesPainterCanvas(
-      pointTypeList: canvasMapWatch!.selectedPointTypeList[mapVariables.mapsUuid]!,
+      pointTypeList: canvasMapWatch!.selectedPointTypeList,
       routeImage: canvasMapWatch.routeImage,
       naviRoutes: canvasMapWatch.naviRoutes[mapVariables.mapsUuid]!,
-      scale: canvasMapWatch.scale[mapVariables.mapsUuid]!,
+      scale: canvasMapWatch.scale!,
       currentMouseCursorPosition: canvasMapWatch.currentMouseCursorPosition,
       currentlyDrawingRoute: canvasMapWatch.newRoutePoints,
       mapVariables: mapVariables,
@@ -58,15 +56,14 @@ class MapPainterController extends ChangeNotifier {
     if (isNotify) notifyListeners();
   }
 
-
   /// Virtual Wall
   VirtualWallPainterCanvas? virtualWallPainterCanvas;
 
   void refreshVirtualWallPainter(MapVariables mapVariables, {bool isNotify = true}) {
-    final  canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
-    virtualWallPainterCanvas= VirtualWallPainterCanvas(
+    final canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
+    virtualWallPainterCanvas = VirtualWallPainterCanvas(
       virtualWalls: canvasMapWatch!.virtualWall,
-      scale: canvasMapWatch.scale[mapVariables.mapsUuid]!,
+      scale: canvasMapWatch.scale!,
       drawnVirtualWalls: canvasMapWatch.updatedVirtualWallPoints,
       currentlyDrawingVirtualWall: canvasMapWatch.virtualWallPoint,
       erasedVirtualWallData: canvasMapWatch.eraseVirtualWallPoint,
@@ -79,30 +76,25 @@ class MapPainterController extends ChangeNotifier {
   ContinousDataCanvas? continuousDataCanvas;
 
   void refreshContinuousData(MapVariables mapVariables, {bool isNotify = true}) {
-    final  canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
+    final canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
     continuousDataCanvas = ContinousDataCanvas(
       laserData: canvasMapWatch!.laserData,
       threeDData: canvasMapWatch.show3DData ? canvasMapWatch.threeDData : [],
       globalPath: canvasMapWatch.globalPath,
-      scale: canvasMapWatch.scale[mapVariables.mapsUuid]!,
+      scale: canvasMapWatch.scale!,
       mapVariables: mapVariables,
     );
     if (isNotify) notifyListeners();
   }
 
+  /// Position Painter
   PositionPainterCanvas? positionPainterCanvas;
 
   void refreshPositionPainter(MapVariables mapVariables, {bool isNotify = true, required DeviceData robot}) {
-    final  canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
+    final canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
     if (canvasMapWatch!.odigoImage != null) {
-      positionPainterCanvas = PositionPainterCanvas(
-        robot: robot,
-        scale: canvasMapWatch.scale[mapVariables.mapsUuid]!,
-        mapVariables: mapVariables,
-      );
+      positionPainterCanvas = PositionPainterCanvas(robot: robot, scale: canvasMapWatch.scale!, mapVariables: mapVariables);
       if (isNotify) notifyListeners();
     }
   }
-
-
 }

@@ -4,9 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:responsive_builder/responsive_builder.dart';
 
-
 class Timeline extends ConsumerStatefulWidget {
-
   const Timeline({super.key});
 
   @override
@@ -14,7 +12,6 @@ class Timeline extends ConsumerStatefulWidget {
 }
 
 class _TimelineState extends ConsumerState<Timeline> with WidgetsBindingObserver, ZoomAwareMixin {
-
   ///Build Override
   @override
   Widget buildPage(BuildContext context) {

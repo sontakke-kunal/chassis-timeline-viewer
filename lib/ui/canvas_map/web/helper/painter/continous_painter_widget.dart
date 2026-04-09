@@ -82,6 +82,7 @@ class _ContinuousPainterWidgetState extends ConsumerState<ContinuousPainterWidge
     return AnimatedBuilder(
       animation: _anim,
       builder: (context, _) {
+        print("Globl Path ${currentPainter.globalPath}");
         return CustomPaint(
           painter: ContinousDataCanvas(
             scale: currentPainter.scale,

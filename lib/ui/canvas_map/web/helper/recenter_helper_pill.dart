@@ -118,7 +118,7 @@ class RecenterHelperPill extends ConsumerWidget {
                   _roundIconBtn(
                     tooltip: 'Zoom in',
                     onTap: () {
-                      final currentScale = canvasMapWatch.transformationController[mapsUuid]!.value.getMaxScaleOnAxis();
+                      final currentScale = canvasMapWatch.transformationController!.value.getMaxScaleOnAxis();
                       double scale = double.parse(currentScale.toStringAsFixed(2));
                       const step = 0.1;
                       final next = (scale + step).clamp(0.2, 2.0);
@@ -130,7 +130,7 @@ class RecenterHelperPill extends ConsumerWidget {
                   _roundIconBtn(
                     tooltip: 'Zoom out',
                     onTap: () {
-                      final currentScale = canvasMapWatch.transformationController[mapsUuid]!.value.getMaxScaleOnAxis();
+                      final currentScale = canvasMapWatch.transformationController!.value.getMaxScaleOnAxis();
                       double scale = double.parse(currentScale.toStringAsFixed(2));
                       const step = 0.1;
                       final next = (scale - step).clamp(0.2, 2.0);
