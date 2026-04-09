@@ -1,4 +1,5 @@
 import 'package:chassis_timeline_viewer/framework/controller/canvas_map/canvas_map_controller.dart';
+import 'package:chassis_timeline_viewer/framework/repository/map/model/device_list_model.dart';
 import 'package:chassis_timeline_viewer/framework/repository/map/model/map_variables.dart';
 import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/custom_painter_canvas.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_constants.dart';
@@ -90,6 +91,18 @@ class MapPainterController extends ChangeNotifier {
   }
 
   PositionPainterCanvas? positionPainterCanvas;
+
+  void refreshPositionPainter(MapVariables mapVariables, {bool isNotify = true, required DeviceData robot}) {
+    final  canvasMapWatch = AppConstants.constant.globalRef?.read(canvasMapController);
+    if (canvasMapWatch!.odigoImage != null) {
+      positionPainterCanvas = PositionPainterCanvas(
+        robot: robot,
+        scale: canvasMapWatch.scale[mapVariables.mapsUuid]!,
+        mapVariables: mapVariables,
+      );
+      if (isNotify) notifyListeners();
+    }
+  }
 
 
 }

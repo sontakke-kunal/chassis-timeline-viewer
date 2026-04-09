@@ -252,7 +252,7 @@ class CanvasMapController extends ChangeNotifier {
 
   ///Get Current Map
   Future<void> setMapData(MapListData mapData) async {
-    deviceList[mapData.uuid!] = [];
+    // deviceList[mapData.uuid!] = [];
     downloadValue[mapData.uuid!] = 0;
     currentMapMode[mapData.uuid!] = 0;
     scale[mapData.uuid!] = 0.6;
@@ -630,7 +630,8 @@ class CanvasMapController extends ChangeNotifier {
   // }
 
   void refreshPositionPainter(String mapsUuid, {bool isNotify = true, required DeviceData robot}) {
-    // AppConstants.constant.globalRef?.read(positionPainterController).refreshPositionPainter(mapVariablesData[mapsUuid]!, isNotify: isNotify, robot: robot);
+    selectedRobotOnMap =robot;
+    AppConstants.constant.globalRef?.read(mapPainterController).refreshPositionPainter(mapVariablesData!, isNotify: isNotify, robot: robot);
   }
 
   void refreshVirtualWallPainter(String mapsUuid, {bool isNotify = true}) {
@@ -642,7 +643,7 @@ class CanvasMapController extends ChangeNotifier {
   }
 
   void refreshContinousData(String mapsUuid, {bool isNotify = true}) {
-    // AppConstants.constant.globalRef?.read(continousDataPainterController).refreshContinousData(mapVariablesData[mapsUuid]!, isNotify: isNotify);
+    AppConstants.constant.globalRef?.read(mapPainterController).refreshContinuousData(mapVariablesData!, isNotify: isNotify);
   }
 
   void refreshRoutesPainter(String mapsUuid, {bool isNotify = true}) {
@@ -734,12 +735,15 @@ class CanvasMapController extends ChangeNotifier {
   static const int _timelineGapThresholdMs = 2000; // 2s
   static const int _timelineGapInsertStepMs = 1000; // 1s
 
+
+  OnPoseReceived? onRobotPositionReceived;
+
   Future<void> listenToRobotPosition(String mapsUuid) async {
     connectedRobotList.clear();
     newConnectedRobotList.clear();
     // SocketController.instance.onRobotList = null;
     onContinuosDataReceived = null;
-    // SocketController.instance.onRobotPositionReceived = null;
+    onRobotPositionReceived = null;
     // SocketController.instance.onFileTransferStarted = null;
     // SocketController.instance.onFileTransferProgress = null;
     // SocketController.instance.onFileTransferCompleted = null;
@@ -838,31 +842,31 @@ class CanvasMapController extends ChangeNotifier {
     //   }
     //   notifyListeners();
     // };
-    // SocketController.instance.onRobotPositionReceived = (robotId, mapsUuid, pose) {
-    //   deviceList[mapsUuid] =
-    //       deviceList[mapsUuid]?.map((e) {
-    //         if (e.deviceDetails?.firstOrNull?.uuid == robotId) {
-    //           e.pose = pose;
-    //           e.color = e.color;
-    //           return e;
-    //         }
-    //         return e;
-    //       }).toList() ??
-    //           [];
-    //   if (deviceList[mapsUuid]?.isNotEmpty ?? false) {
-    //     refreshPositionPainter(mapsUuid, robot: deviceList[mapsUuid]!.firstWhere((element) => element.deviceDetails?.firstOrNull?.uuid == robotId), isNotify: true);
-    //   }
-    //   if (isRecenter && selectedRobotOnMap != null && selectedRobotUuid == robotId) {
-    //     // Keep the robot centered like Google Maps.
-    //     recenterOnPose(mapsUuid, pose);
-    //   }
-    // };
+    onRobotPositionReceived = (robotId, mapsUuid, pose) {
+      deviceList[mapsUuid] =
+          deviceList[mapsUuid]?.map((e) {
+            if (e.deviceDetails?.firstOrNull?.uuid == robotId) {
+              e.pose = pose;
+              e.color = e.color;
+              return e;
+            }
+            return e;
+          }).toList() ??
+              [];
+      if (deviceList[mapsUuid]?.isNotEmpty ?? false) {
+        refreshPositionPainter(mapsUuid, robot: deviceList[mapsUuid]!.firstWhere((element) => element.deviceDetails?.firstOrNull?.uuid == robotId), isNotify: true);
+      }
+      if (isRecenter && selectedRobotOnMap != null && selectedRobotUuid == robotId) {
+        // Keep the robot centered like Google Maps.
+        recenterOnPose(mapsUuid, pose);
+      }
+    };
     onContinuosDataReceived = (robotId, mapName, path, threeDData, laserData, simEvent, navModeEvent, sessionData, versionData, sensorData, systemData, speedData, deviceState, networkEvent, batteryData, adsDataRes) {
       this.batteryData[robotId] = batteryData;
       if (networkEvent != null) {
         this.networkEvent[robotId] = networkEvent;
       }
-      if (robotId == selectedRobotUuid) {
+      // if (robotId == selectedRobotUuid) {
         globalPath = path;
         this.threeDData = threeDData ?? [];
         this.laserData = laserData ?? [];
@@ -875,7 +879,7 @@ class CanvasMapController extends ChangeNotifier {
         this.systemData = systemData;
         this.speedData = speedData;
         this.deviceState = deviceState;
-      }
+      // }
       refreshContinousData(mapsUuid, isNotify: true);
       notifyListeners();
     };
@@ -1614,6 +1618,25 @@ class CanvasMapController extends ChangeNotifier {
     );
   }
 
+  (double?, double?) extractPoseXY(dynamic poseJson) {
+    if (poseJson == null) return (null, null);
+
+    // If Pose json is a Map, try common structures/keys
+    if (poseJson is Map) {
+      double? readNum(dynamic v) {
+        if (v == null) return null;
+        if (v is num) return v.toDouble();
+        return double.tryParse(v.toString());
+      }
+
+      // Common direct keys
+      final x1 = readNum(poseJson['x']) ?? readNum(poseJson['posX']) ?? readNum(poseJson['positionX']) ?? readNum(poseJson['poseX']);
+      final y1 = readNum(poseJson['y']) ?? readNum(poseJson['posY']) ?? readNum(poseJson['positionY']) ?? readNum(poseJson['poseY']);
+      if (x1 != null && y1 != null) return (x1, y1);
+    }
+    return (null, null);
+  }
+
   loadTimelineData(Map<String, dynamic> response) {
     String robotId = response['ru'];
     String mapsUuid = response['mu'];
@@ -1637,11 +1660,11 @@ class CanvasMapController extends ChangeNotifier {
     if (response['p'] != null) {
       final poseJson = response['p'];
       Pose pose = Pose.fromTimelineJson(poseJson);
-      // SocketController.instance.onRobotPositionReceived?.call(robotId, mapsUuid, pose);
+      onRobotPositionReceived?.call(robotId, mapsUuid, pose);
       selectedRobotOnMap?.pose = pose;
-      // final xy = SocketController.instance.extractPoseXY(poseJson);
-      // robotX = xy.$1;
-      // robotY = xy.$2;
+      final xy = extractPoseXY(poseJson);
+      robotX = xy.$1;
+      robotY = xy.$2;
     }
     List<List<double>>? globalPath;
     var globalPathRes = response['gp'];
@@ -1876,7 +1899,10 @@ class CanvasMapController extends ChangeNotifier {
       VirtualWallResponseModel virtualWallResponseModel=VirtualWallResponseModel.fromJson(metaData);
       //DestinationData destinationData=DestinationData.fromJson(metaData["destination"]);
       MapListData mapData=MapListData.fromJson(metaData["maps"]);
-      String? mapImgData=metaData["mapsImage"];
+       DeviceData deviceData=DeviceData.fromJson(metaData["device"]);
+       deviceList[mapUuid]= [deviceData];
+       selectedRobotOnMap = deviceData;
+       String? mapImgData=metaData["mapsImage"];
 
       if(mapImgData!=null){
         print("Image Load");
@@ -1933,6 +1959,7 @@ class CanvasMapController extends ChangeNotifier {
       painterCanvas?.refreshWaypointsPainter(mapVariablesData!);
       painterCanvas?.refreshRoutesPainter(mapVariablesData!);
       painterCanvas?.refreshContinuousData(mapVariablesData!);
+      painterCanvas?.refreshPositionPainter(mapVariablesData!,robot: selectedRobotOnMap!);
     }
   }
 
@@ -2053,3 +2080,5 @@ const String relocateStr = 'Relocate';
 const String navigationStr = 'Navigation';
 const String virtualWallStr = 'Virtual Wall';
 const String routeStr = 'Route';
+
+typedef OnPoseReceived = void Function(String robotId, String mapsUuid, Pose pose);

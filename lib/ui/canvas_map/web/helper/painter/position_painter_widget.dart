@@ -37,6 +37,7 @@ class _PositionPainterWidgetState extends ConsumerState<PositionPainterWidget> w
     final painter = canvasPaintWatch.positionPainterCanvas;
 
     if (painter == null) {
+      print("is Empty");
       return const SizedBox.shrink();
     }
 
@@ -56,6 +57,7 @@ class _PositionPainterWidgetState extends ConsumerState<PositionPainterWidget> w
     return AnimatedBuilder(
       animation: _anim,
       builder: (context, _) {
+        print("Builder Running ${currentPose} ${widget.mapVariables.width} ${widget.mapVariables.height}");
         return CustomPaint(
           painter: PositionPainterCanvas(
             scale: painter.scale,
