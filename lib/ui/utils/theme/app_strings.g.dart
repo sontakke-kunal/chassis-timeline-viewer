@@ -7,5 +7,7 @@ abstract class  LocaleKeys {
   static const keyShouldBeRequired = 'keyShouldBeRequired';
   static const keyActive = 'keyActive';
   static const keyDeActive = 'keyDeActive';
+  static const keySuccess = 'keySuccess';
+  static const keySomeThingWentWrong = 'keySomeThingWentWrong';
 
 }

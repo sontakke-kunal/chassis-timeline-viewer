@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:ui';
 import 'package:chassis_timeline_viewer/framework/controller/canvas_map/canvas_map_controller.dart';
+import 'package:chassis_timeline_viewer/framework/repository/map/model/map_variables.dart';
 import 'package:chassis_timeline_viewer/framework/utils/extension/context_extension.dart';
 import 'package:chassis_timeline_viewer/framework/utils/extension/string_extension.dart';
 import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/android_data_widget.dart';
@@ -18,6 +19,7 @@ import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/painter/virtual
 import 'package:chassis_timeline_viewer/ui/canvas_map/web/helper/painter/waypoint_painter_widget.dart';
 import 'package:chassis_timeline_viewer/ui/timeline/timeline_keybaord_handler.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_constants.dart';
+import 'package:chassis_timeline_viewer/ui/utils/theme/assets.gen.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
 import 'package:chassis_timeline_viewer/ui/utils/widgets/common_anim_loader.dart';
 import 'package:chassis_timeline_viewer/ui/utils/widgets/common_text.dart';
@@ -38,6 +40,7 @@ class TimelineWeb extends ConsumerStatefulWidget {
 class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderStateMixin {
   CanvasMapController? _canvasCtrl;
   VoidCallback? _ctrlListener;
+  bool isFullScreenMapSelected = true;
 
   // Slider hover/drag tooltip
   bool _sliderHovering = false;
@@ -71,6 +74,11 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
       canvasMapWatch.batteryData = {};
       canvasMapWatch.listenToRobotPosition(canvasMapWatch.mapsUuid);
       canvasMapWatch.notifyListeners();
+      canvasMapWatch.odigoImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoNavigationIcon.path);
+      canvasMapWatch.chargingPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgMarkChargingPoint.path);
+      canvasMapWatch.productionPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoProdcutionPoint.path);
+      canvasMapWatch.deliveryPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoLocationPoint.path);
+      canvasMapWatch.routeImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgRoutePoint.path);
       _canvasCtrl = canvasMapWatch;
     });
     super.initState();
@@ -114,23 +122,34 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
     return Scaffold(
       resizeToAvoidBottomInset: false,
       backgroundColor: AppColors.whiteF7F7FC,
-      body: Container(
-        padding: EdgeInsetsGeometry.symmetric(horizontal: context.width * 0.01, vertical: context.height * 0.02),
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(15), color: AppColors.whiteF7F7FC),
-        child: KeyboardKeyListenerWrapper(
-          onSpacePressed: (isHold) {
-            canvasMapWatch.toggleTimelinePlayPause();
-          },
-          onRightPressed: (isHold) {
-            canvasMapWatch.seekTimeline(1, isKey: true);
-          },
-          onLeftPressed: (isHold) {
-            canvasMapWatch.seekTimeline(-1, isKey: true);
-          },
-          onDoubleSpacePressed: () {
-            canvasMapWatch.toggleSpeed();
-          },
-          child: bodyWidget(),
+      body: MouseRegion(
+        onHover: (hoverEvent) {
+          if (!isFullScreenMapSelected) return;
+          if (canvasMapWatch.selectedMode == virtualWallStr && canvasMapWatch.point1Marked) {
+            canvasMapWatch.updatedMarkPoint(canvasMapWatch.mapsUuid, hoverEvent.localPosition.dx, hoverEvent.localPosition.dy);
+          }
+          if (canvasMapWatch.selectedMode != null) {
+            canvasMapWatch.updateCurrentCursorPosition(canvasMapWatch.mapsUuid, hoverEvent.localPosition.dx, hoverEvent.localPosition.dy);
+          }
+        },
+        child: Container(
+          padding: EdgeInsetsGeometry.symmetric(horizontal: context.width * 0.01, vertical: context.height * 0.02),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(15), color: AppColors.whiteF7F7FC),
+          child: KeyboardKeyListenerWrapper(
+            onSpacePressed: (isHold) {
+              canvasMapWatch.toggleTimelinePlayPause();
+            },
+            onRightPressed: (isHold) {
+              canvasMapWatch.seekTimeline(1, isKey: true);
+            },
+            onLeftPressed: (isHold) {
+              canvasMapWatch.seekTimeline(-1, isKey: true);
+            },
+            onDoubleSpacePressed: () {
+              canvasMapWatch.toggleSpeed();
+            },
+            child: bodyWidget(),
+          ),
         ),
       ),
     );
@@ -236,12 +255,13 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
             ),
           ),
 
-        if (canvasMapWatch.downloadValue[canvasMapWatch.mapsUuid] != null)
-          Builder(
-            builder: (context) {
-              return CommonAnimLoader(value: canvasMapWatch.downloadValue[canvasMapWatch.mapsUuid]);
-            },
-          ),
+        /// loader
+        // if (canvasMapWatch.downloadValue[canvasMapWatch.mapsUuid] != null)
+        //   Builder(
+        //     builder: (context) {
+        //       return CommonAnimLoader(value: canvasMapWatch.downloadValue[canvasMapWatch.mapsUuid]);
+        //     },
+        //   ),
 
         Positioned(
           left: context.width * 0.05,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:ui' as ui;
+import 'package:chassis_timeline_viewer/framework/controller/canvas_map/canvas_painter_controller.dart';
 import 'package:chassis_timeline_viewer/framework/dependency_injection/inject.dart';
 import 'package:chassis_timeline_viewer/framework/repository/map/model/device_list_model.dart';
 import 'package:chassis_timeline_viewer/framework/repository/map/model/device_state_event.dart';
@@ -15,14 +16,18 @@ import 'package:chassis_timeline_viewer/framework/repository/map/model/way_point
 import 'package:chassis_timeline_viewer/framework/utils/extension/context_extension.dart';
 import 'package:chassis_timeline_viewer/framework/utils/extension/extension.dart';
 import 'package:chassis_timeline_viewer/framework/utils/extension/graph_extension.dart';
+import 'package:chassis_timeline_viewer/ui/routing/navigation_stack_item.dart';
+import 'package:chassis_timeline_viewer/ui/routing/stack.dart';
+import 'package:chassis_timeline_viewer/ui/utils/app_constants.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_enums.dart';
+import 'package:chassis_timeline_viewer/ui/utils/theme/assets.gen.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
 import 'package:chassis_timeline_viewer/ui/utils/widgets/common_text.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:injectable/injectable.dart';
-
+import 'package:image/image.dart' as IMG;
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -246,56 +251,56 @@ class CanvasMapController extends ChangeNotifier {
   }
 
   ///Get Current Map
-  // Future<void> setMapData(MapListData mapData) async {
-  //   deviceList[mapData.uuid!] = [];
-  //   downloadValue[mapData.uuid!] = 0;
-  //   currentMapMode[mapData.uuid!] = 0;
-  //   scale[mapData.uuid!] = 0.6;
-  //   selectedPointTypeList[mapData.uuid!] = [];
-  //   notifyListeners();
-  //   var mapImageUrl = await Dio().get(
-  //     mapData.mapsImageUrl ?? '',
-  //     onReceiveProgress: (count, total) {
-  //       downloadValue[mapData.uuid ?? ''] = count / total;
-  //       notifyListeners();
-  //     },
-  //   );
-  //   notifyListeners();
-  //   currentMapResponseModel[mapData.uuid!] = mapData;
-  //   var currentMap = mapImageUrl.toString();
-  //   var originX = currentMapResponseModel[mapData.uuid]?.originX ?? 0.0;
-  //   var originY = currentMapResponseModel[mapData.uuid]?.originY ?? 0.0;
-  //   var resolution = currentMapResponseModel[mapData.uuid]?.resolution ?? 0.0;
-  //   var width = currentMapResponseModel[mapData.uuid]?.width ?? 0.0;
-  //   var height = currentMapResponseModel[mapData.uuid]?.height ?? 0.0;
-  //   var centerX = (originX / resolution) * -1;
-  //   var centerY = (height) - ((originY / resolution) * -1);
-  //   globalPath = [];
-  //   laserData = [];
-  //   threeDData = [];
-  //   transformationController[mapData.uuid!] = TransformationController();
-  //   mapVariablesData[mapData.uuid!] = MapVariables();
-  //   mapVariablesData[mapData.uuid!]?.initializeMapConstants(mapData.uuid!, currentMap, originX, originY, resolution, width, height, centerX, centerY);
-  //   if (currentMapMode == 1) {
-  //     clearAllData(mapData.uuid!);
-  //   }
-  //   image[mapData.uuid!] = await mapVariablesData[mapData.uuid!]?.loadImage();
-  //   refreshMapPainter(mapData.uuid!);
-  // }
+  Future<void> setMapData(MapListData mapData) async {
+    deviceList[mapData.uuid!] = [];
+    downloadValue[mapData.uuid!] = 0;
+    currentMapMode[mapData.uuid!] = 0;
+    scale[mapData.uuid!] = 0.6;
+    selectedPointTypeList[mapData.uuid!] = [];
+    notifyListeners();
+    // var mapImageUrl = await Dio().get(
+    //   mapData.mapsImageUrl ?? '',
+    //   onReceiveProgress: (count, total) {
+    //     downloadValue[mapData.uuid ?? ''] = count / total;
+    //     notifyListeners();
+    //   },
+    // );
+    notifyListeners();
+    currentMapResponseModel[mapData.uuid!] = mapData;
+    // var currentMap = mapImageUrl.toString();
+    var originX = currentMapResponseModel[mapData.uuid]?.originX ?? 0.0;
+    var originY = currentMapResponseModel[mapData.uuid]?.originY ?? 0.0;
+    var resolution = currentMapResponseModel[mapData.uuid]?.resolution ?? 0.0;
+    var width = currentMapResponseModel[mapData.uuid]?.width ?? 0.0;
+    var height = currentMapResponseModel[mapData.uuid]?.height ?? 0.0;
+    var centerX = (originX / resolution) * -1;
+    var centerY = (height) - ((originY / resolution) * -1);
+    globalPath = [];
+    laserData = [];
+    threeDData = [];
+    transformationController[mapData.uuid!] = TransformationController();
+    mapVariablesData= MapVariables();
+    mapVariablesData?.initializeMapConstants(mapData.uuid!, "", originX, originY, resolution, width, height, centerX, centerY);
+    if (currentMapMode == 1) {
+      clearAllData(mapData.uuid!);
+    }
+    // crtImg = ;
+    refreshMapPainter(mapData.uuid!);
+  }
 
   void clearAllData(String mapsUuid) {
     waypointsList[mapsUuid]!.clear();
     naviRoutes[mapsUuid]!.clear();
     laserData.clear();
     threeDData.clear();
-    virtualWall[mapsUuid]!.clear();
+    virtualWall.clear();
     refreshEntireCanvas(mapsUuid);
   }
 
   GlobalKey loadingDialogKey = GlobalKey();
 
   ///Get way points
-  // Future<void> getWaypoints(String mapsUuid) async {
+  // Future<void> getWaypoints/(String mapsUuid) async {
   //   virtualWall[mapsUuid] = [];
   //   naviRoutes[mapsUuid] = {};
   //   waypointsList[mapsUuid] = [];
@@ -400,7 +405,7 @@ class CanvasMapController extends ChangeNotifier {
   Map<String, Map<String, List<List<double>>>> naviRoutes = {};
 
   ///List of virtual wall
-  Map<String, List<VirtualWallPoint>> virtualWall = {};
+  List<VirtualWallPoint> virtualWall = [];
 
   ///Laser Sensor Data
   List<List<double>> laserData = [];
@@ -541,6 +546,7 @@ class CanvasMapController extends ChangeNotifier {
   LaserDataResponseModel? laserDataResponseModel;
 
   String? crtImg;
+  ui.Image? image;
   PictureInfo? odigoImage;
   PictureInfo? chargingPointImage;
   PictureInfo? productionPointImage;
@@ -903,6 +909,7 @@ class CanvasMapController extends ChangeNotifier {
   Map<String, List<PointType>> selectedPointTypeList = {};
 
   void addSelectedPointType(String mapsUuid, PointType type) {
+    print("AddSelected Way Point");
     if (selectedPointTypeList[mapsUuid] == null) selectedPointTypeList[mapsUuid] = [];
     selectedPointTypeList[mapsUuid]!.add(type);
     refreshWaypointsPainter(mapsUuid, isNotify: true);
@@ -1072,14 +1079,14 @@ class CanvasMapController extends ChangeNotifier {
   //   refreshRelocationPainter(mapsUuid, pose: relocationPoint, isNotify: true, color: selectedRobotOnMap?.color);
   // }
   //
-  // List<double>? currentMouseCursorPosition;
+  List<double>? currentMouseCursorPosition;
   //
-  // void updateCurrentCursorPosition(String mapsUuid, double x, double y) {
-  //   currentMouseCursorPosition = [x, y];
-  //   refreshCurrentMousePosition(mapsUuid, isNotify: true);
-  //   refreshRoutesPainter(mapsUuid);
-  //   notifyListeners();
-  // }
+  void updateCurrentCursorPosition(String mapsUuid, double x, double y) {
+    currentMouseCursorPosition = [x, y];
+    refreshCurrentMousePosition(mapsUuid, isNotify: true);
+    refreshRoutesPainter(mapsUuid);
+    notifyListeners();
+  }
 
   ////-------------------------------------- Navigation ----------------------------------------------///
 
@@ -1129,43 +1136,43 @@ class CanvasMapController extends ChangeNotifier {
 
   ///////// --------------------------- Virtual Wall Screen---------------------------------////////
 
-  // VirtualWallPoint? virtualWallPoint;
-  // List<VirtualWallPoint> updatedVirtualWallPoints = [];
-  // bool point1Marked = false;
+  VirtualWallPoint? virtualWallPoint;
+  List<VirtualWallPoint> updatedVirtualWallPoints = [];
+  bool point1Marked = false;
   //
-  // void markPoint1(String mapsUuid, double x, double y) {
-  //   virtualWallPoint = VirtualWallPoint(
-  //     pose: VirtualWallPose(
-  //       point1: Point(x: x, y: y),
-  //       point2: Point(x: x, y: y),
-  //     ),
-  //   );
-  //   point1Marked = true;
-  //   refreshVirtualWallPainter(mapsUuid, isNotify: true);
-  // }
-  //
-  // void updatedMarkPoint(String mapsUuid, double x, double y) {
-  //   virtualWallPoint?.pose.point2.x = x;
-  //   virtualWallPoint?.pose.point2.y = y;
-  //   refreshVirtualWallPainter(mapsUuid, isNotify: true);
-  // }
-  //
-  // void markPoint2(String mapsUuid, double x, double y) {
-  //   virtualWallPoint?.pose.point2.x = x;
-  //   virtualWallPoint?.pose.point2.y = y;
-  //   virtualWallPoint?.pose.point1.x = virtualWallPoint?.pose.point1.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
-  //   virtualWallPoint?.pose.point1.y = virtualWallPoint?.pose.point1.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
-  //   virtualWallPoint?.pose.point2.x = virtualWallPoint?.pose.point2.x.convertXToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
-  //   virtualWallPoint?.pose.point2.y = virtualWallPoint?.pose.point2.y.convertYToDasherPoint(mapVariablesData[mapsUuid]!) ?? 0;
-  //   if (virtualWallPoint != null) {
-  //     updatedVirtualWallPoints.add(virtualWallPoint!);
-  //     virtualWallPoint = VirtualWallPoint(
-  //       pose: VirtualWallPose(point1: Point(x: 0, y: 0), point2: Point(x: 0, y: 0)),
-  //     );
-  //     point1Marked = false;
-  //     refreshVirtualWallPainter(mapsUuid, isNotify: true);
-  //   }
-  // }
+  void markPoint1(String mapsUuid, double x, double y) {
+    virtualWallPoint = VirtualWallPoint(
+      pose: VirtualWallPose(
+        point1: Point(x: x, y: y),
+        point2: Point(x: x, y: y),
+      ),
+    );
+    point1Marked = true;
+    refreshVirtualWallPainter(mapsUuid, isNotify: true);
+  }
+
+  void updatedMarkPoint(String mapsUuid, double x, double y) {
+    virtualWallPoint?.pose.point2.x = x;
+    virtualWallPoint?.pose.point2.y = y;
+    refreshVirtualWallPainter(mapsUuid, isNotify: true);
+  }
+
+  void markPoint2(String mapsUuid, double x, double y) {
+    virtualWallPoint?.pose.point2.x = x;
+    virtualWallPoint?.pose.point2.y = y;
+    virtualWallPoint?.pose.point1.x = virtualWallPoint?.pose.point1.x.convertXToDasherPoint(mapVariablesData!) ?? 0;
+    virtualWallPoint?.pose.point1.y = virtualWallPoint?.pose.point1.y.convertYToDasherPoint(mapVariablesData!) ?? 0;
+    virtualWallPoint?.pose.point2.x = virtualWallPoint?.pose.point2.x.convertXToDasherPoint(mapVariablesData!) ?? 0;
+    virtualWallPoint?.pose.point2.y = virtualWallPoint?.pose.point2.y.convertYToDasherPoint(mapVariablesData!) ?? 0;
+    if (virtualWallPoint != null) {
+      updatedVirtualWallPoints.add(virtualWallPoint!);
+      virtualWallPoint = VirtualWallPoint(
+        pose: VirtualWallPose(point1: Point(x: 0, y: 0), point2: Point(x: 0, y: 0)),
+      );
+      point1Marked = false;
+      refreshVirtualWallPainter(mapsUuid, isNotify: true);
+    }
+  }
   //
   // ///Save changes in virtual wall
   // Future<void> saveVirtualWall(String mapsUuid) async {
@@ -1239,7 +1246,7 @@ class CanvasMapController extends ChangeNotifier {
     final wallPoint4Y = eraseVirtualWallPoint!.pose.point4.y.convertYToDasherPoint(mapVariablesData!);
     List<VirtualWallPoint> virtualWallAffectedList = [];
     eraseVirtualWallPoint = null;
-    for (var walls in virtualWall[mapsUuid]!) {
+    for (var walls in virtualWall) {
       bool lineIntersect = lineIntersectsRectangle(
         Offset(wallPoint1X, wallPoint1Y),
         Offset(wallPoint2X, wallPoint2Y),
@@ -1253,7 +1260,7 @@ class CanvasMapController extends ChangeNotifier {
       }
     }
     for (var walls in virtualWallAffectedList) {
-      virtualWall[mapsUuid]!.removeWhere(
+      virtualWall.removeWhere(
             (element) => (element.pose.point1.x == walls.pose.point1.x) && (element.pose.point1.y == walls.pose.point1.y) && (element.pose.point2.x == walls.pose.point2.x) && (element.pose.point2.y == walls.pose.point2.y),
       );
     }
@@ -1477,10 +1484,12 @@ class CanvasMapController extends ChangeNotifier {
     _timelineLastFull = {};
 
     String res = timeLineData??"";
+
     // if ((path ?? timelineFilePath) != null) {
     //   // File is stored as "k,d" objects without top-level array; normalize.
     //   res = '[${(await File(path ?? timelineFilePath!).readAsString()).replaceAll(',,]', '.]')}]';
     // }
+    res = res.replaceAll(',,]', '.]');
     res = res.replaceAll(', ]', ']');
     if (res.trim().isEmpty) return 0;
 
@@ -1488,6 +1497,7 @@ class CanvasMapController extends ChangeNotifier {
     String timelineDate = "08-04-2026";
     timelineDate = timelineDate.split('.json').first;
     final rawList = (jsonDecode(res) as List);
+    print("Row List : ");
     int totalLen = rawList.length;
     // Parse in order.
     final List<DateTime> parsedTimes = [];
@@ -1816,8 +1826,16 @@ class CanvasMapController extends ChangeNotifier {
   String? timeLineData;
   String? timeLineDate;
 
+  Future<void> loadPointTypeImages()async{
+    odigoImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoNavigationIcon.path);
+    chargingPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgMarkChargingPoint.path);
+    productionPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoProdcutionPoint.path);
+    deliveryPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoLocationPoint.path);
+    routeImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgRoutePoint.path);
+  }
 
   Future<void> readZipFile() async {
+    await loadPointTypeImages();
     File? file=await _pickZipFile;
     if(file==null) return;
     List<ZipEntryData>? list= await _unZipInMemory(file);
@@ -1845,7 +1863,8 @@ class CanvasMapController extends ChangeNotifier {
     }
 
     try {
-      final String? timeLineData =await _parseCompressedJson(compressedFile.data);
+       String? timeLineData =await _parseCompressedJson(compressedFile.data);
+       timeLineData = "[$timeLineData]";
       this.timeLineData=timeLineData;
 
       final Map<String, dynamic> metaData = jsonDecode(utf8.decode(metaDataFile.data));
@@ -1858,10 +1877,17 @@ class CanvasMapController extends ChangeNotifier {
       //DestinationData destinationData=DestinationData.fromJson(metaData["destination"]);
       MapListData mapData=MapListData.fromJson(metaData["maps"]);
       String? mapImgData=metaData["mapsImage"];
+
+      if(mapImgData!=null){
+        print("Image Load");
+        image = await loadImage(mapImage:mapImgData);
+      }
+
+
       this.timeLineDate=metaData["exportedAt"];
 
-      this.virtualWall[mapUuid]=virtualWallResponseModel.waypoints;
-      this.mapsUuid=mapUuid;
+      this.virtualWall=virtualWallResponseModel.waypoints;
+      this.mapsUuid= mapUuid;
       this.waypointsList[mapUuid]=wayPointData.waypoints??[];
       print("Tyype: ${metaData["routes"].runtimeType}");
       print(metaData["routes"]);
@@ -1881,15 +1907,35 @@ class CanvasMapController extends ChangeNotifier {
       );
       print(routes);
       this.naviRoutes= {mapUuid:routes??{}};//TODO
+       setMapData(mapData);
+       fillPainterData();
+      // Map<String,List<List<double>>>? routes=metaData["routes"];
+      // this.naviRoutes= {"routes":routes??{}};//TODO
 
       this.crtImg=mapImgData;
 
+
+      AppConstants.constant.globalRef?.read(navigationStackController).push(NavigationStackItem.timeline());
 
     } catch (e) {
       showErrorToast(msg:"JSON parse error: $e");
     }
 
   }
+
+
+  void fillPainterData(){
+
+    final painterCanvas = AppConstants.constant.globalRef?.read(mapPainterController);
+    if(mapVariablesData!=null){
+      painterCanvas?.refreshMapPainter(mapVariablesData!);
+      painterCanvas?.refreshVirtualWallPainter(mapVariablesData!);
+      painterCanvas?.refreshWaypointsPainter(mapVariablesData!);
+      painterCanvas?.refreshRoutesPainter(mapVariablesData!);
+      painterCanvas?.refreshContinuousData(mapVariablesData!);
+    }
+  }
+
   Future<String?> _parseCompressedJson(Uint8List data) async {
     try{
       final String base64Str = utf8.decode(data);
@@ -1909,6 +1955,69 @@ class CanvasMapController extends ChangeNotifier {
     final BuildContext? context=globalNavigatorKey.currentContext;
     if(context==null) return;
     showToast(context: context,message: msg,isSuccess: false);
+  }
+
+  Future<ui.Image> loadImage({int? height, int? width, bool doChangeColor = true,required String mapImage}) async {
+
+    Uint8List img = base64Decode(mapImage.replaceAll('data:image/png;base64,', ''));
+    if (height != null && width != null) {
+      final IMG.Image? image = IMG.decodeImage(img);
+      if (image != null) {
+        final IMG.Image resized = IMG.copyResize(image, width: width, height: height);
+        img = IMG.encodePng(resized);
+      }
+    }
+    final Completer<ui.Image> completer = Completer();
+    ui.decodeImageFromList(img, (ui.Image img) {
+      return completer.complete(img);
+    });
+    if (doChangeColor) {
+      return await changeColor(await completer.future);
+    }
+    return (await completer.future);
+  }
+
+  Future<ui.Image> changeColor(ui.Image image) async {
+    final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    final Uint8List data = byteData!.buffer.asUint8List();
+
+    /// Target color which you want to change in your image
+    int targetColor = AppColors.mapColor.value;
+
+    /// New color which you want to replace to target color
+    // int newColor = AppColors.clr00D1FF.value;
+    int newColor = AppColors.newMapColor.value;
+
+    for (int i = 0; i < data.length; i += 4) {
+      int r = data[i];
+      int g = data[i + 1];
+      int b = data[i + 2];
+
+      /// Check if the pixel color is approximately equal to the target color
+      if (_approximateColor(r, g, b, targetColor)) {
+        data[i] = (newColor >> 16) & 0xFF; // Red
+        data[i + 1] = (newColor >> 8) & 0xFF; // Green
+        data[i + 2] = newColor & 0xFF; // Blue
+      }
+    }
+
+    final ui.ImmutableBuffer buffer = await ui.ImmutableBuffer.fromUint8List(data);
+    final ui.ImageDescriptor descriptor = ui.ImageDescriptor.raw(buffer, width: image.width, height: image.height, pixelFormat: ui.PixelFormat.rgba8888);
+    final ui.Codec codec = await descriptor.instantiateCodec();
+    final ui.FrameInfo frameInfo = await codec.getNextFrame();
+    return frameInfo.image;
+  }
+
+  bool _approximateColor(int r1, int g1, int b1, int color) {
+    int r2 = (color >> 16) & 0xFF;
+    int g2 = (color >> 8) & 0xFF;
+    int b2 = color & 0xFF;
+
+    /// Define a tolerance level for color approximation
+    int tolerance = 30;
+
+    /// Check if the difference between the RGB values is within the tolerance level
+    return (r1 - r2).abs() <= tolerance && (g1 - g2).abs() <= tolerance && (b1 - b2).abs() <= tolerance;
   }
 
 }

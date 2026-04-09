@@ -1,4 +1,5 @@
 import 'package:chassis_timeline_viewer/ui/splash/splash.dart';
+import 'package:chassis_timeline_viewer/ui/timeline/timeline.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:injectable/injectable.dart';
@@ -66,6 +67,7 @@ class MainRouterDelegate extends RouterDelegate<NavigationStack>
     return item.when(
       splash: () =>
           NoAnimationPage(child: Splash(), key: ValueKey(Keys.splash)),
+      timeline: () => NoAnimationPage(child: Timeline(), key: ValueKey(Keys.timeline))
     );
   }
 

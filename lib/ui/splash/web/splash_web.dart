@@ -1,4 +1,4 @@
-import 'package:chassis_timeline_viewer/framework/controller/temp.dart';
+import 'package:chassis_timeline_viewer/framework/controller/canvas_map/canvas_map_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +16,7 @@ class _SplashWebState extends ConsumerState<SplashWeb> {
   void initState() {
     super.initState();
     SchedulerBinding.instance.addPostFrameCallback((timeStamp) async {
+        ref.read(canvasMapController).readZipFile();
     });
   }
 

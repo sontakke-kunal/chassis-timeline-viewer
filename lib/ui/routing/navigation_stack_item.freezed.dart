@@ -55,11 +55,12 @@ extension NavigationStackItemPatterns on NavigationStackItem {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( NavigationStackItemSplashPage value)?  splash,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( NavigationStackItemSplashPage value)?  splash,TResult Function( NavigationStackItemTimelinePage value)?  timeline,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case NavigationStackItemSplashPage() when splash != null:
-return splash(_that);case _:
+return splash(_that);case NavigationStackItemTimelinePage() when timeline != null:
+return timeline(_that);case _:
   return orElse();
 
 }
@@ -77,11 +78,12 @@ return splash(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( NavigationStackItemSplashPage value)  splash,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( NavigationStackItemSplashPage value)  splash,required TResult Function( NavigationStackItemTimelinePage value)  timeline,}){
 final _that = this;
 switch (_that) {
 case NavigationStackItemSplashPage():
-return splash(_that);case _:
+return splash(_that);case NavigationStackItemTimelinePage():
+return timeline(_that);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -98,11 +100,12 @@ return splash(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( NavigationStackItemSplashPage value)?  splash,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( NavigationStackItemSplashPage value)?  splash,TResult? Function( NavigationStackItemTimelinePage value)?  timeline,}){
 final _that = this;
 switch (_that) {
 case NavigationStackItemSplashPage() when splash != null:
-return splash(_that);case _:
+return splash(_that);case NavigationStackItemTimelinePage() when timeline != null:
+return timeline(_that);case _:
   return null;
 
 }
@@ -119,10 +122,11 @@ return splash(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  splash,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function()?  splash,TResult Function()?  timeline,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case NavigationStackItemSplashPage() when splash != null:
-return splash();case _:
+return splash();case NavigationStackItemTimelinePage() when timeline != null:
+return timeline();case _:
   return orElse();
 
 }
@@ -140,10 +144,11 @@ return splash();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  splash,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function()  splash,required TResult Function()  timeline,}) {final _that = this;
 switch (_that) {
 case NavigationStackItemSplashPage():
-return splash();case _:
+return splash();case NavigationStackItemTimelinePage():
+return timeline();case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -160,10 +165,11 @@ return splash();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  splash,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function()?  splash,TResult? Function()?  timeline,}) {final _that = this;
 switch (_that) {
 case NavigationStackItemSplashPage() when splash != null:
-return splash();case _:
+return splash();case NavigationStackItemTimelinePage() when timeline != null:
+return timeline();case _:
   return null;
 
 }
@@ -195,6 +201,38 @@ int get hashCode => runtimeType.hashCode;
 @override
 String toString() {
   return 'NavigationStackItem.splash()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class NavigationStackItemTimelinePage implements NavigationStackItem {
+  const NavigationStackItemTimelinePage();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is NavigationStackItemTimelinePage);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'NavigationStackItem.timeline()';
 }
 
 

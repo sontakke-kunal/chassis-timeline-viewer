@@ -7,6 +7,7 @@ class Keys {
   static Keys keys = Keys._();
 
   static String get splash => 'splash';
+  static String get timeline => 'timeline';
 }
 
 class NavigationStackKeyMapper {
@@ -22,7 +23,7 @@ class NavigationStackKeyMapper {
 
   String fetchMainUrl(List<NavigationStackItem> items, {WidgetRef? ref}) {
     final location = items.fold<String>('', (previousValue, element) {
-      return previousValue + element.when(splash: () => '/');
+      return previousValue + element.when(splash: () => '/', timeline: () => Keys.timeline);
     });
     List<String> queryParam = [];
     List<String> tempUrlList = location.toString().split('/');
