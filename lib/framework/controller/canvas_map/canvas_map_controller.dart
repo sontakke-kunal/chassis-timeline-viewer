@@ -39,7 +39,6 @@ import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image/image.dart' as IMG;
 import 'package:path/path.dart' as p ;
-import 'package:path_provider/path_provider.dart';
 
 final canvasMapController = ChangeNotifierProvider((ref) => getIt<CanvasMapController>());
 
@@ -1428,7 +1427,7 @@ class CanvasMapController extends ChangeNotifier {
 
   ///import file
   Future<File?> get _pickZipFile async {
-    FilePickerResult? result = await FilePicker.pickFiles(allowMultiple: false, type: FileType.custom, allowedExtensions: ['timeLine']);
+    FilePickerResult? result = await FilePicker.pickFiles(allowMultiple: false, type: FileType.custom, allowedExtensions: ['timeLine'], lockParentWindow: true,);
     String? filePath = result?.files.firstOrNull?.path;
     if (filePath == null) return null;
     return File(filePath);
@@ -1461,16 +1460,6 @@ class CanvasMapController extends ChangeNotifier {
     productionPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoProdcutionPoint.path);
     deliveryPointImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoLocationPoint.path);
     routeImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgRoutePoint.path);
-  }
-
-  Future<Directory> get _tempDir async {
-    try{
-      if(Platform.isAndroid || Platform.isIOS){
-        return getTemporaryDirectory();
-      }else if(Platform.isWindows || Platform.isMacOS)
-        return Directory.systemTemp;
-    }catch(e){}
-    return Directory.systemTemp;
   }
 
   // Future<File> _createTempZipFile({
@@ -1608,7 +1597,7 @@ class CanvasMapController extends ChangeNotifier {
       showErrorToast(msg: "Password not filled");
       return;
     }
-    final String tempDir = (await _tempDir).path;
+    final String tempDir = AppConstants.tempDirPath;
     List<File>? list= await _unzipFile(file: file, password: pass.trim(), tempDirPath: tempDir);//use here
     if(list==null || list.length!=2){
       showErrorToast(msg:"File unzipping failed");

@@ -29,6 +29,7 @@ Future<void> main() async {
   await Hive.openBox(AppConstants.zoomBoxName);
   await EasyLocalization.ensureInitialized();
   await configureMainDependencies(environment: Env.development);
+  await AppConstants.setTempDirPath();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   setPathUrlStrategy();
   String initialLocation = '';
