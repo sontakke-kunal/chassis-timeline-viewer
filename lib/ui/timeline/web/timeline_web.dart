@@ -227,8 +227,7 @@ class _TimelineWebState extends ConsumerState<TimelineWeb> with TickerProviderSt
                         /// Back Button
                         InkWell(
                           onTap: () =>{
-
-                            // ref.read(navigationStackController).pop()
+                            ref.read(navigationStackController).pop()
                           },
                           child: Container(
                             width: context.width * 0.023,
