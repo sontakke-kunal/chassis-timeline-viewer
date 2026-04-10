@@ -27,7 +27,6 @@ import 'package:chassis_timeline_viewer/ui/utils/app_constants.dart';
 import 'package:chassis_timeline_viewer/ui/utils/app_enums.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/assets.gen.dart';
 import 'package:chassis_timeline_viewer/ui/utils/theme/theme.dart';
-import 'package:chassis_timeline_viewer/ui/utils/widgets/common_dialogs.dart';
 import 'package:chassis_timeline_viewer/ui/utils/widgets/common_text.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,9 +36,7 @@ import 'dart:typed_data';
 import 'package:chassis_timeline_viewer/ui/routing/delegate.dart';
 import 'package:chassis_timeline_viewer/ui/utils/widgets/common_toast_widget.dart';
 import 'package:collection/collection.dart';
-import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:chassis_timeline_viewer/framework/utils/helpers/laser_path_polisher.dart';
 import 'package:image/image.dart' as IMG;
 import 'package:path/path.dart' as p ;
 import 'package:path_provider/path_provider.dart';
@@ -1072,12 +1069,16 @@ class CanvasMapController extends ChangeNotifier {
     return deviceLogs.length;
   }
 
-  final DateFormat _dateFormat=DateFormat("dd-mm-yyyy");
+  final RegExp _fileDateRegex = RegExp(r'\d{2}-\d{2}-\d{4}');
 
   String? get _timLineFormattedDate{
-    final DateTime? dateTime=DateTime.tryParse(this.timeLineDate??"");
-    if(dateTime==null) return null;
-    return _dateFormat.format(dateTime);
+    if(_timeLineFilePath==null) return null;
+    String name=p.basenameWithoutExtension(_timeLineFilePath??"");
+    final RegExpMatch? match = _fileDateRegex.firstMatch(name);
+    if (match != null) {
+      return match.group(0)?.trim(); // returns the matched date string
+    }
+    return null;
   }
 
   Future<int> readTimelineFile() async {
@@ -1095,7 +1096,6 @@ class CanvasMapController extends ChangeNotifier {
 
     //String timelineDate = (path ?? timelineFilePath)!.split('_').last;
     String timelineDate = _timLineFormattedDate??"08-04-2026";
-    timelineDate = timelineDate.split('.json').first;
     final rawList = (jsonDecode(res) as List);
     int totalLen = rawList.length;
     // Parse in order.
@@ -1434,7 +1434,7 @@ class CanvasMapController extends ChangeNotifier {
     return File(filePath);
   }
 
-  final ZipDecoder _zipDecoder = ZipDecoder();
+  // final ZipDecoder _zipDecoder = ZipDecoder();
 
   // Future<List<ZipEntryData>?> _unZipInMemory(File zipFile) async {
   //   try {
@@ -1453,7 +1453,7 @@ class CanvasMapController extends ChangeNotifier {
   // }
 
   String? timeLineData;
-  String? timeLineDate;
+  String? _timeLineFilePath;
 
   Future<void> loadPointTypeImages() async {
     odigoImage = await SvgRootLoader.svg.loadSvgRoot(Assets.svgs.svgOdigoNavigationIcon.path);
@@ -1651,7 +1651,7 @@ class CanvasMapController extends ChangeNotifier {
         image = await loadImage(mapImage:mapImgData);
       }
 
-      this.timeLineDate = metaData["exportedAt"];
+      this._timeLineFilePath = compressedFile.path;
       this.virtualWall = virtualWallResponseModel.waypoints;
       this.mapsUuid = mapUuid;
       this.waypointsList[mapUuid] = wayPointData.waypoints ?? [];
