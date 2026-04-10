@@ -1428,21 +1428,21 @@ class CanvasMapController extends ChangeNotifier {
 
   final ZipDecoder _zipDecoder = ZipDecoder();
 
-  Future<List<ZipEntryData>?> _unZipInMemory(File zipFile) async {
-    try {
-      final Uint8List bytes = await zipFile.readAsBytes();
-      final Archive archive = _zipDecoder.decodeBytes(bytes, password: "Jio@1");
-      final List<ZipEntryData> result = [];
-      for (final ArchiveFile file in archive) {
-        if (file.isFile) {
-          result.add(ZipEntryData(file.name, Uint8List.fromList(file.content as List<int>)));
-        }
-      }
-      return result;
-    } catch (e) {
-      showErrorToast(msg: "Unzipping failed");
-    }
-  }
+  // Future<List<ZipEntryData>?> _unZipInMemory(File zipFile) async {
+  //   try {
+  //     final Uint8List bytes = await zipFile.readAsBytes();
+  //     final Archive archive = _zipDecoder.decodeBytes(bytes, password: "Jio@1");
+  //     final List<ZipEntryData> result = [];
+  //     for (final ArchiveFile file in archive) {
+  //       if (file.isFile) {
+  //         result.add(ZipEntryData(file.name, Uint8List.fromList(file.content as List<int>)));
+  //       }
+  //     }
+  //     return result;
+  //   } catch (e) {
+  //     showErrorToast(msg: "Unzipping failed");
+  //   }
+  // }
 
   String? timeLineData;
   String? timeLineDate;
@@ -1457,27 +1457,40 @@ class CanvasMapController extends ChangeNotifier {
 
   Future<Directory> get _tempDir async {
     try{
-      if(Platform.isAndroid){
+      if(Platform.isAndroid || Platform.isIOS){
         return getTemporaryDirectory();
       }else if(Platform.isWindows || Platform.isMacOS)
         return Directory.systemTemp;
-    }catch(e){
-      return Directory.systemTemp;
-    }
+    }catch(e){}
     return Directory.systemTemp;
   }
 
-  Future<File> _createTempZipFile({
-    required File originalFile,
-    required String dirPath,
-  }) async {
-    final baseName = p.basenameWithoutExtension(originalFile.path);
-    final zipPath = p.join(dirPath, '$baseName.zip');
+  // Future<File> _createTempZipFile({
+  //   required File originalFile,
+  //   required String dirPath,
+  // }) async {
+  //   final baseName = p.basenameWithoutExtension(originalFile.path);
+  //   final zipPath = p.join(dirPath, '$baseName.zip');
+  //
+  //   final file = File(zipPath);
+  //
+  //   final bytes = await originalFile.readAsBytes();
+  //   return await file.writeAsBytes(bytes);
+  // }
 
-    final file = File(zipPath);
+  final List<String> _junkFiles=[
+    'Thumbs.db',
+    'desktop.ini',
+    '.DS_Store',
+  ];
 
-    final bytes = await originalFile.readAsBytes();
-    return await file.writeAsBytes(bytes);
+  bool _isNotJunk(FileSystemEntity e){
+    if(e is! File) return false;
+    final String path=e.path;
+    final String fileName=p.basename(path);
+    if(_junkFiles.contains(fileName)) return false;
+    if(path.contains('__MACOSX')) return false;
+    return true;
   }
 
   Future<List<File>?> _unzipFile({
@@ -1486,16 +1499,13 @@ class CanvasMapController extends ChangeNotifier {
     required String tempDirPath,
   }) async {
     final ReceivePort receivePort = ReceivePort();
-    final BuildContext? context=globalNavigatorKey.currentContext;
 
     try {
       if (!await file.exists()) {
         showErrorToast(msg: 'File not found');
         return null;
       }
-      if(context!=null) {
-        UnzipLoadingDialog.show();
-      }
+      UnzipLoadingDialog.show();
 
       final Directory extractDirectory = Directory(
         p.join(
@@ -1546,17 +1556,14 @@ class CanvasMapController extends ChangeNotifier {
 
           if (response['e'] != null &&
               response['e'].toString().contains('password')) {
-              UnzipLoadingDialog.close();
               showErrorToast(msg: 'Please enter correct password');
           } else {
-            UnzipLoadingDialog.close();
             showErrorToast(msg: 'Failed to unzip file');
           }
 
           return null;
         }
       }
-      UnzipLoadingDialog.close();
 
       if (!unzipSuccess) {
         showErrorToast(msg: 'Unzip not completed');
@@ -1564,7 +1571,8 @@ class CanvasMapController extends ChangeNotifier {
       }
       final List<File> files = await extractDirectory
           .list(recursive: true, followLinks: false)
-          .where((e) => e is File && !e.path.contains('__MACOSX'))
+          //.where((e) => e is File && !e.path.contains('__MACOSX'))
+          .where(_isNotJunk)
           .cast<File>()
           .toList();
 
@@ -1575,56 +1583,46 @@ class CanvasMapController extends ChangeNotifier {
 
       return files;
     } catch (e) {
-      UnzipLoadingDialog.close();
       showErrorToast(msg: 'Something went wrong');
       print("Exception: $e");
       return null;
     } finally {
+      UnzipLoadingDialog.close();
       receivePort.close();
     }
   }
 
   Future<void> readZipFile() async {
-    await loadPointTypeImages();
-    final String tempDir = (await _tempDir).path;
     File? file=await _pickZipFile;
-    if(file==null) return;
-    try{
-      file= await _createTempZipFile(originalFile:file,dirPath: tempDir);
-    }catch(e){
-      file=null;
-      showErrorToast(msg: "File creation failed");
-    }
     if(file==null) return;
     String? pass=await showPasswordDialog();
     if(pass==null) {
-      showErrorToast(msg: "Password not done");
+      showErrorToast(msg: "Password not filled");
       return;
     }
+    final String tempDir = (await _tempDir).path;
     List<File>? list= await _unzipFile(file: file, password: pass.trim(), tempDirPath: tempDir);//use here
-    if(list==null || list.isEmpty){
+    if(list==null || list.length!=2){
       showErrorToast(msg:"File unzipping failed");
       return ;
     }
-    int txtFileCnt=0;
+    File? metaDataFile;
+    File? compressedFile;
     for(File file in list){
-      String ext=p.extension(file.path);
-      if(ext.contains("txt")){
-        txtFileCnt++;
+      String path=file.path;
+      if(path.endsWith("_metadata.txt")){
+        metaDataFile=file;
+      }else if(path.endsWith("_compressed.txt")){
+        compressedFile=file;
       }
     }
-    if(txtFileCnt!=2){
-      showErrorToast(msg: "Valid txt files not found");
-      return;
-    }
-    final File? metaDataFile=list.firstWhereOrNull((obj)=>obj.path.endsWith("_metadata.txt"));
-    final File? compressedFile=list.firstWhereOrNull((obj)=>obj.path.endsWith("_compressed.txt"));
-    if(metaDataFile==null || compressedFile==null){
+   if(metaDataFile==null || compressedFile==null){
       showErrorToast(msg: "Json file name invlaid");
       return;
     }
 
     try {
+      await loadPointTypeImages();
       String? timeLineData =LaserPathPolisher.instance.decompressString(await compressedFile.readAsString());
       timeLineData = "[$timeLineData]";
       this.timeLineData=timeLineData;
@@ -1642,7 +1640,6 @@ class CanvasMapController extends ChangeNotifier {
        String? mapImgData=metaData["mapsImage"];
 
       if(mapImgData!=null){
-        print("Image Load");
         image = await loadImage(mapImage:mapImgData);
       }
 
@@ -1679,21 +1676,6 @@ class CanvasMapController extends ChangeNotifier {
       painterCanvas?.refreshRoutesPainter(mapVariablesData!);
       painterCanvas?.refreshContinuousData(mapVariablesData!);
       painterCanvas?.refreshPositionPainter(mapVariablesData!, robot: selectedRobotOnMap!);
-    }
-  }
-
-  Future<String?> parseCompressedFile(Uint8List data) async {
-    try {
-      final String base64Str = utf8.decode(data).replaceAll('\n', '').trim();
-
-      final Uint8List compressedBytes = base64Decode(base64Str);
-
-      final Uint8List decompressedBytes = GZipDecoder().decodeBytes(compressedBytes);
-
-      return utf8.decode(decompressedBytes);
-    } catch (e) {
-      showErrorToast(msg: "File formatting failed");
-      return null;
     }
   }
 
@@ -1766,12 +1748,12 @@ class CanvasMapController extends ChangeNotifier {
   }
 }
 
-class ZipEntryData {
-  final String name;
-  final Uint8List data;
-
-  ZipEntryData(this.name, this.data);
-}
+// class ZipEntryData {
+//   final String name;
+//   final Uint8List data;
+//
+//   ZipEntryData(this.name, this.data);
+// }
 
 typedef OnContinuosDataReceived =
     void Function(
