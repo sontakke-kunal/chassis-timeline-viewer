@@ -1072,6 +1072,14 @@ class CanvasMapController extends ChangeNotifier {
     return deviceLogs.length;
   }
 
+  final DateFormat _dateFormat=DateFormat("dd-mm-yyyy");
+
+  String? get _timLineFormattedDate{
+    final DateTime? dateTime=DateTime.tryParse(this.timeLineDate??"");
+    if(dateTime==null) return null;
+    return _dateFormat.format(dateTime);
+  }
+
   Future<int> readTimelineFile() async {
     if (timeLineData == null) return 0;
     timelineTimer?.cancel();
@@ -1086,7 +1094,7 @@ class CanvasMapController extends ChangeNotifier {
     if (res.trim().isEmpty) return 0;
 
     //String timelineDate = (path ?? timelineFilePath)!.split('_').last;
-    String timelineDate = "08-04-2026";
+    String timelineDate = _timLineFormattedDate??"08-04-2026";
     timelineDate = timelineDate.split('.json').first;
     final rawList = (jsonDecode(res) as List);
     int totalLen = rawList.length;
