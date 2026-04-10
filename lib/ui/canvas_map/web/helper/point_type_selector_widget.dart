@@ -19,7 +19,7 @@ class PointTypeSelectorWidget extends ConsumerWidget {
     final canvasMapWatch = ref.watch(canvasMapController);
 
     return Container(
-      width: context.width * 0.12,
+      width: context.width * 0.19,
       padding: EdgeInsets.symmetric(
         horizontal: context.width * 0.006,
         vertical: context.height * 0.010,

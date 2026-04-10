@@ -57,7 +57,6 @@ class _PositionPainterWidgetState extends ConsumerState<PositionPainterWidget> w
     return AnimatedBuilder(
       animation: _anim,
       builder: (context, _) {
-        print("Builder Running ${currentPose} ${widget.mapVariables.width} ${widget.mapVariables.height}");
         return CustomPaint(
           painter: PositionPainterCanvas(
             scale: painter.scale,
